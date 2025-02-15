@@ -1,0 +1,10 @@
+[package]
+name = "imx"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image = "0.25.5"
+anyhow = { version = "1.0.95", features = ["backtrace"] }
+tokio = { version = "1.43.0", features = ["full"] }
+log = "0.4.25" 
