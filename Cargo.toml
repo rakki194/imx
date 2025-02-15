@@ -2,6 +2,8 @@
 name = "imx"
 version = "0.1.0"
 edition = "2024"
+description = "A Rust utility library for efficient image processing and manipulation, supporting batch operations, transparency handling, and letterbox removal"
+license = "MIT"
 
 [dependencies]
 image = "0.25.5"
