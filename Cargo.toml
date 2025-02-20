@@ -4,6 +4,11 @@ version = "0.1.1"
 edition = "2024"
 description = "A library for image processing and manipulation"
 license = "MIT"
+repository = "https://github.com/rakki194/imx"
+homepage = "https://github.com/rakki194/imx"
+documentation = "https://docs.rs/imx"
+keywords = ["image", "processing", "manipulation", "graphics", "multimedia"]
+categories = ["multimedia::images", "graphics", "multimedia"]
 
 [dependencies]
 anyhow = { version = "1.0.95", features = ["backtrace"] }
