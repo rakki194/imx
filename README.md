@@ -51,13 +51,16 @@ async fn process_image() -> Result<()> {
 ### Process JXL Images
 
 ```rust
-use imx::{is_jxl_file, process_jxl_file};
+use imx::{is_jxl_file, process_jxl_file, convert_jxl_to_png};
 use anyhow::Result;
 
 async fn process_jxl() -> Result<()> {
     let path = "path/to/image.jxl";
     if is_jxl_file(path) {
-        // Convert to PNG and optionally process
+        // Convert JXL to PNG directly
+        convert_jxl_to_png(path).await?;
+        
+        // Or process with a callback
         process_jxl_file(path, Some(|png_path| async move {
             // Process the PNG file
             Ok(())

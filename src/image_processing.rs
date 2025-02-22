@@ -193,36 +193,3 @@ where
     info!("Processing image: {}", path.display());
     processor(path).await
 }
-
-/// Checks if a caption file exists and is not empty.
-#[must_use = "Checks if the caption file exists and is not empty and the result should be checked"]
-pub async fn caption_file_exists_and_not_empty(path: &Path) -> bool {
-    if path.exists() {
-        match fs::read_to_string(path).await {
-            Ok(content) => !content.trim().is_empty(),
-            Err(_) => false,
-        }
-    } else {
-        false
-    }
-}
-
-/// Renames a file to remove the image extension.
-///
-/// # Errors
-///
-/// Returns an `io::Error` if the file cannot be renamed.
-#[must_use = "Renames a file and requires handling of the result to ensure the file is properly renamed"]
-pub async fn rename_file_without_image_extension(path: &Path) -> std::io::Result<()> {
-    if let Some(old_name) = path.to_str() {
-        if old_name.contains(".jpeg") || old_name.contains(".png") || old_name.contains(".jpg") {
-            let new_name = old_name
-                .replace(".jpeg", "")
-                .replace(".png", "")
-                .replace(".jpg", "");
-            fs::rename(old_name, &new_name).await?;
-            info!("Renamed {old_name} to {new_name}");
-        }
-    }
-    Ok(())
-}
