@@ -24,10 +24,10 @@ pub fn is_image_file(path: &Path) -> bool {
     // Get the file extension
     let extension = path.extension()
         .and_then(|e| e.to_str())
-        .map(|e| e.to_lowercase());
+        .map(str::to_lowercase);
 
     // Check if it's a supported extension
-    let has_valid_extension = extension.as_deref().map_or(false, |ext| {
+    let has_valid_extension = extension.as_deref().is_some_and(|ext| {
         matches!(ext, "jpg" | "jpeg" | "png" | "jxl" | "webp")
     });
 
