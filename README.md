@@ -27,7 +27,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-imx = "0.1.2"
+imx = "0.1.3"
 ```
 
 ## Usage Examples
