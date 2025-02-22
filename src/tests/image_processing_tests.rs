@@ -1,5 +1,7 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 use crate::image_processing;
-use image::{ImageBuffer, Rgba};
+use image::{GenericImageView, ImageBuffer, Rgba};
 use std::fs;
 use tempfile::TempDir;
 
@@ -65,7 +67,7 @@ fn test_is_image_file() {
 #[tokio::test]
 async fn test_caption_file_exists_and_not_empty() -> anyhow::Result<()> {
     let temp_dir = TempDir::new()?;
-    
+
     // Test non-existent file
     let non_existent = temp_dir.path().join("non_existent.txt");
     assert!(!image_processing::caption_file_exists_and_not_empty(&non_existent).await);
@@ -120,4 +122,4 @@ async fn test_rename_file_without_image_extension() -> anyhow::Result<()> {
     assert!(txt_file.exists()); // Should not be renamed
 
     Ok(())
-} 
+}

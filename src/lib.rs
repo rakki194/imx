@@ -1,12 +1,14 @@
-pub mod numeric;
+#![warn(clippy::all, clippy::pedantic)]
+
 pub mod image_processing;
 pub mod jxl;
+pub mod numeric;
 
 #[cfg(test)]
 mod tests {
-    mod numeric_tests;
-    mod jxl_tests;
     mod image_processing_tests;
+    mod jxl_tests;
+    mod numeric_tests;
 }
 
 // Re-export commonly used types and functions

@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 /// Constants for f32 range that can safely represent integers
 pub(crate) const F32_MAX_SAFE_INT: f32 = 16_777_216.0; // 2^24, maximum integer that f32 can represent exactly
 pub(crate) const F32_MIN_SAFE_INT: f32 = -16_777_216.0;
@@ -87,4 +89,4 @@ pub fn i32_to_f32_for_pos(x: i32) -> f32 {
     #[allow(clippy::cast_precision_loss)]
     let result = x as f32;
     result
-} 
+}

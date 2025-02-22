@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 use anyhow::{Context, Result};
 use image::{GenericImageView, ImageBuffer, ImageFormat, Rgba};
 use log::info;
@@ -223,4 +225,4 @@ pub async fn rename_file_without_image_extension(path: &Path) -> std::io::Result
         }
     }
     Ok(())
-} 
+}
