@@ -25,14 +25,17 @@ fn test_f32_to_i32() {
     assert_eq!(numeric::f32_to_i32(TEST_SAFE_INT_MIN), i32::MIN);
 
     // Values just inside bounds
-    assert_eq!(
-        numeric::f32_to_i32(TEST_SAFE_INT_MAX - 1.0),
-        (TEST_SAFE_INT_MAX - 1.0) as i32
-    );
-    assert_eq!(
-        numeric::f32_to_i32(TEST_SAFE_INT_MIN + 1.0),
-        (TEST_SAFE_INT_MIN + 1.0) as i32
-    );
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        assert_eq!(
+            numeric::f32_to_i32(TEST_SAFE_INT_MAX - 1.0),
+            (TEST_SAFE_INT_MAX - 1.0) as i32
+        );
+        assert_eq!(
+            numeric::f32_to_i32(TEST_SAFE_INT_MIN + 1.0),
+            (TEST_SAFE_INT_MIN + 1.0) as i32
+        );
+    }
 }
 
 #[test]
@@ -88,6 +91,7 @@ fn test_f32_to_u8() {
 }
 
 #[test]
+#[allow(clippy::float_cmp, clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 fn test_i32_to_f32_for_pos() {
     // Test typical screen coordinate values
     assert_eq!(numeric::i32_to_f32_for_pos(0), 0.0);
