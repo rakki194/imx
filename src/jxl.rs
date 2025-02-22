@@ -3,7 +3,6 @@ use image::{ImageBuffer, Rgba};
 use jxl_oxide::{JxlImage, PixelFormat};
 use log::info;
 use std::path::Path;
-use tokio::fs;
 
 /// Check if a file is a JXL image
 ///
