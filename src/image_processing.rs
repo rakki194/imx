@@ -2,20 +2,66 @@
 
 use anyhow::{Context, Result};
 use image::{GenericImageView, ImageBuffer, ImageFormat, Rgba};
-use log::info;
+use log::{info, warn};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
-/// Determines if the given path is an image file.
+/// Determines the actual image format from file magic numbers.
+fn detect_image_format(buffer: &[u8; 12]) -> Option<&'static str> {
+    match buffer {
+        [0xFF, 0xD8, 0xFF, ..] => Some("jpeg"),
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some("png"),
+        [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50] => Some("webp"),
+        [0xFF, 0x0A, ..] => Some("jxl"),
+        _ => None,
+    }
+}
+
+/// Determines if the given path is an image file by checking both extension and file contents.
 #[must_use = "Determines if the path is an image file and the result should be checked"]
 pub fn is_image_file(path: &Path) -> bool {
-    match path.extension().and_then(|e| e.to_str()) {
-        Some(ext) => matches!(
-            ext.to_lowercase().as_str(),
-            "jpg" | "jpeg" | "png" | "jxl" | "webp"
-        ),
-        None => false,
+    // Get the file extension
+    let extension = path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase());
+
+    // Check if it's a supported extension
+    let has_valid_extension = extension.as_deref().map_or(false, |ext| {
+        matches!(ext, "jpg" | "jpeg" | "png" | "jxl" | "webp")
+    });
+
+    if !has_valid_extension {
+        return false;
     }
+
+    // Then verify file contents
+    if let Ok(mut file) = std::fs::File::open(path) {
+        let mut buffer = [0u8; 12];
+        if file.read_exact(&mut buffer).is_ok() {
+            // Detect actual format from magic numbers
+            if let Some(actual_format) = detect_image_format(&buffer) {
+                // Check for extension mismatch
+                if let Some(ext) = extension {
+                    let claimed_format = if ext == "jpg" { "jpeg" } else { &ext };
+                    if claimed_format != actual_format {
+                        warn!(
+                            "File extension mismatch for {}: claims to be {} but appears to be {}",
+                            path.display(),
+                            claimed_format.to_uppercase(),
+                            actual_format.to_uppercase()
+                        );
+                    }
+                }
+                return true;
+            }
+            
+            // Try to open with image crate as fallback
+            return image::open(path).is_ok();
+        }
+    }
+    
+    false
 }
 
 /// Removes transparency from an image, making transparent pixels black and fully opaque.
