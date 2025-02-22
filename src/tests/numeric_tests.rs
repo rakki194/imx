@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 use crate::numeric;
 
 // Test-specific constants
@@ -105,4 +107,4 @@ fn test_i32_to_f32_for_pos() {
         numeric::i32_to_f32_for_pos(i32::MIN).round() as i32,
         i32::MIN
     );
-} 
+}

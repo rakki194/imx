@@ -1,8 +1,11 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 use anyhow::{Context, Result};
 use image::{ImageBuffer, Rgba};
 use jxl_oxide::{JxlImage, PixelFormat};
 use log::info;
 use std::path::Path;
+use tokio::fs;
 
 /// Check if a file is a JXL image
 ///
@@ -133,4 +136,4 @@ where
 
     // Return the conversion error if it failed
     conversion_result
-} 
+}

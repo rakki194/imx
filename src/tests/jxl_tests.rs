@@ -1,6 +1,10 @@
+#![warn(clippy::all, clippy::pedantic)]
+
+use anyhow::Result;
 use crate::jxl;
 use std::fs;
 use std::future::Future;
+use std::io::Write;
 use std::pin::Pin;
 use tempfile::TempDir;
 
@@ -56,4 +60,4 @@ async fn test_process_jxl_file_with_processor() -> anyhow::Result<()> {
     assert!(result.is_err()); // Should fail due to invalid JXL data
     assert!(processed.load(std::sync::atomic::Ordering::SeqCst)); // But processor should still be called
     Ok(())
-} 
+}
