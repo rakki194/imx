@@ -27,6 +27,12 @@ pub fn is_image_file(path: &Path) -> bool {
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The image file cannot be opened
+/// * The modified image cannot be saved
 pub async fn remove_transparency(path: &Path) -> Result<()> {
     if !is_image_file(path) {
         return Ok(());
@@ -63,6 +69,10 @@ pub async fn remove_transparency(path: &Path) -> Result<()> {
 /// # Returns
 ///
 /// Returns a `Result` containing a tuple of (width, height)
+///
+/// # Errors
+///
+/// Returns an error if the image file cannot be opened
 pub fn get_image_dimensions(path: &Path) -> Result<(u32, u32)> {
     let img = image::open(path).context("Failed to open image")?;
     Ok(img.dimensions())
@@ -78,6 +88,12 @@ pub fn get_image_dimensions(path: &Path) -> Result<(u32, u32)> {
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The image file cannot be opened
+/// * The modified image cannot be saved
 pub async fn remove_letterbox(path: &Path) -> Result<()> {
     remove_letterbox_with_threshold(path, 0).await
 }
@@ -93,6 +109,14 @@ pub async fn remove_letterbox(path: &Path) -> Result<()> {
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The image file cannot be read
+/// * The image cannot be loaded from memory
+/// * The cropped image cannot be written to a buffer
+/// * The modified image cannot be saved
 pub async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Result<()> {
     let img_bytes = fs::read(path).await?;
     let img = image::load_from_memory(&img_bytes).context("Failed to load image from memory")?;
@@ -181,6 +205,10 @@ pub async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Resu
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if the processor function returns an error
 pub async fn process_image<F, Fut>(path: PathBuf, processor: F) -> Result<()>
 where
     F: FnOnce(PathBuf) -> Fut,

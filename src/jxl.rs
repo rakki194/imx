@@ -15,6 +15,7 @@ use std::path::Path;
 /// # Returns
 ///
 /// Returns true if the file has a .jxl extension
+#[must_use]
 pub fn is_jxl_file(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
@@ -31,6 +32,14 @@ pub fn is_jxl_file(path: &Path) -> bool {
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The JXL file cannot be read
+/// * The JXL file cannot be decoded
+/// * The JXL frame cannot be rendered
+/// * The PNG file cannot be saved
 pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result<()> {
     info!(
         "Converting JXL to PNG: {} -> {}",
@@ -67,18 +76,26 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
         for x in 0..width {
             let pixel_idx = ((y * width + x) as usize) * channels;
             let pixel = match image.pixel_format() {
-                PixelFormat::Rgba => Rgba([
-                    (pixel_data[pixel_idx] * 255.0) as u8,
-                    (pixel_data[pixel_idx + 1] * 255.0) as u8,
-                    (pixel_data[pixel_idx + 2] * 255.0) as u8,
-                    (pixel_data[pixel_idx + 3] * 255.0) as u8,
-                ]),
-                PixelFormat::Rgb => Rgba([
-                    (pixel_data[pixel_idx] * 255.0) as u8,
-                    (pixel_data[pixel_idx + 1] * 255.0) as u8,
-                    (pixel_data[pixel_idx + 2] * 255.0) as u8,
-                    255,
-                ]),
+                PixelFormat::Rgba => {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    let rgba = [
+                        (pixel_data[pixel_idx] * 255.0) as u8,
+                        (pixel_data[pixel_idx + 1] * 255.0) as u8,
+                        (pixel_data[pixel_idx + 2] * 255.0) as u8,
+                        (pixel_data[pixel_idx + 3] * 255.0) as u8,
+                    ];
+                    Rgba(rgba)
+                },
+                PixelFormat::Rgb => {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    let rgb = [
+                        (pixel_data[pixel_idx] * 255.0) as u8,
+                        (pixel_data[pixel_idx + 1] * 255.0) as u8,
+                        (pixel_data[pixel_idx + 2] * 255.0) as u8,
+                        255,
+                    ];
+                    Rgba(rgb)
+                },
                 _ => anyhow::bail!("Unsupported JXL pixel format: {:?}", image.pixel_format()),
             };
             rgba.put_pixel(x, y, pixel);
@@ -103,6 +120,14 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The input file is not a JXL file
+/// * The JXL to PNG conversion fails
+/// * The processor function returns an error
+/// * The original JXL file cannot be removed
 pub async fn process_jxl_file<'a, F, Fut>(input_path: &Path, processor: Option<F>) -> Result<()>
 where
     F: for<'r> FnOnce(&'r Path) -> Fut + Send + 'a,
