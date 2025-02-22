@@ -7,13 +7,70 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
+/// Represents a detected image format based on file magic numbers
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetectedImageFormat {
+    /// JPEG image format
+    Jpeg,
+    /// PNG image format
+    Png,
+    /// WebP image format
+    WebP,
+    /// JPEG XL image format
+    Jxl,
+}
+
+impl DetectedImageFormat {
+    /// Get the standard file extension for this format
+    #[must_use]
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Jpeg => "jpeg",
+            Self::Png => "png",
+            Self::WebP => "webp",
+            Self::Jxl => "jxl",
+        }
+    }
+
+    /// Get all valid file extensions for this format
+    #[must_use]
+    pub fn all_extensions(&self) -> &'static [&'static str] {
+        match self {
+            Self::Jpeg => &["jpg", "jpeg"],
+            Self::Png => &["png"],
+            Self::WebP => &["webp"],
+            Self::Jxl => &["jxl"],
+        }
+    }
+
+    /// Convert to the corresponding image::ImageFormat
+    #[must_use]
+    pub fn to_image_format(&self) -> Option<ImageFormat> {
+        match self {
+            Self::Jpeg => Some(ImageFormat::Jpeg),
+            Self::Png => Some(ImageFormat::Png),
+            Self::WebP => Some(ImageFormat::WebP),
+            Self::Jxl => None, // image crate might not support JXL
+        }
+    }
+}
+
 /// Determines the actual image format from file magic numbers.
-fn detect_image_format(buffer: &[u8; 12]) -> Option<&'static str> {
+///
+/// # Arguments
+///
+/// * `buffer` - A buffer containing at least the first 12 bytes of the file
+///
+/// # Returns
+///
+/// Returns `Some(DetectedImageFormat)` if a known image format is detected, `None` otherwise
+#[must_use]
+pub fn detect_image_format(buffer: &[u8; 12]) -> Option<DetectedImageFormat> {
     match buffer {
-        [0xFF, 0xD8, 0xFF, ..] => Some("jpeg"),
-        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some("png"),
-        [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50] => Some("webp"),
-        [0xFF, 0x0A, ..] => Some("jxl"),
+        [0xFF, 0xD8, 0xFF, ..] => Some(DetectedImageFormat::Jpeg),
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some(DetectedImageFormat::Png),
+        [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50] => Some(DetectedImageFormat::WebP),
+        [0xFF, 0x0A, ..] => Some(DetectedImageFormat::Jxl),
         _ => None,
     }
 }
@@ -44,12 +101,12 @@ pub fn is_image_file(path: &Path) -> bool {
                 // Check for extension mismatch
                 if let Some(ext) = extension {
                     let claimed_format = if ext == "jpg" { "jpeg" } else { &ext };
-                    if claimed_format != actual_format {
+                    if claimed_format != actual_format.extension() {
                         warn!(
                             "File extension mismatch for {}: claims to be {} but appears to be {}",
                             path.display(),
                             claimed_format.to_uppercase(),
-                            actual_format.to_uppercase()
+                            actual_format.extension().to_uppercase()
                         );
                     }
                 }
@@ -224,7 +281,7 @@ pub async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Resu
         let cropped = img.crop_imm(left, top, right - left + 1, bottom - top + 1);
         let mut buf = Vec::new();
         cropped
-            .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
+            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
             .context("Failed to write cropped image to buffer")?;
         fs::write(path, buf).await?;
         info!(
