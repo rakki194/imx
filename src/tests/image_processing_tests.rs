@@ -2,7 +2,6 @@
 
 use crate::image_processing;
 use image::{GenericImageView, ImageBuffer, Rgba};
-use std::fs;
 use tempfile::TempDir;
 
 #[tokio::test]
