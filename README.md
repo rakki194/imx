@@ -19,6 +19,7 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Async/await support
   - Error handling with context
   - Detailed logging
+  - Safe numeric type conversions (f32 ↔ i32 ↔ u32 ↔ u8)
 
 ## Installation
 
@@ -26,7 +27,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-imx = "0.1.1"
+imx = "0.1.2"
 ```
 
 ## Usage Examples
@@ -91,6 +92,23 @@ fn check_image_size() -> Result<()> {
 }
 ```
 
+### Safe Numeric Conversions
+
+```rust
+use imx::numeric::{f32_to_i32, i32_to_u32, f32_to_u8};
+
+fn convert_numbers() {
+    // Safe f32 to i32 conversion (handles NaN, infinity, and out-of-range values)
+    let int_val = f32_to_i32(123.45); // Rounds to 123
+    
+    // Safe i32 to u32 conversion (clamps negative values to 0)
+    let uint_val = i32_to_u32(-10); // Returns 0
+    
+    // Safe f32 to u8 conversion (clamps to 0..=255)
+    let byte_val = f32_to_u8(300.0); // Returns 255
+}
+```
+
 ### Check File Types
 
 ```rust
@@ -135,6 +153,7 @@ The test suite includes:
 - Integration tests with sample images
 - Error handling tests
 - Format-specific tests (JXL, PNG, etc.)
+- Numeric conversion tests
 
 ## Contributing
 
