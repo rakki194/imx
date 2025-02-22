@@ -43,7 +43,7 @@ impl DetectedImageFormat {
         }
     }
 
-    /// Convert to the corresponding image::ImageFormat
+    /// Convert to the corresponding `image::ImageFormat`
     #[must_use]
     pub fn to_image_format(&self) -> Option<ImageFormat> {
         match self {
