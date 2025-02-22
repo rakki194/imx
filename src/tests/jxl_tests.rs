@@ -1,6 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use anyhow::Result;
 use crate::jxl;
 use std::fs;
 use std::future::Future;

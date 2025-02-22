@@ -1,6 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use anyhow::Result;
 use crate::image_processing;
 use image::{GenericImageView, ImageBuffer, Rgba};
 use std::fs;
