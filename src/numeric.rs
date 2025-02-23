@@ -46,7 +46,7 @@ pub(crate) const F32_MIN_SAFE_INT: f32 = -16_777_216.0;
 ///
 /// This function provides several safety guarantees:
 /// - NaN values are converted to 0
-/// - Values outside i32's range are clamped to i32::MIN or i32::MAX
+/// - Values outside i32's range are clamped to `i32::MIN` or `i32::MAX`
 /// - Values are rounded to the nearest integer using banker's rounding
 ///
 /// # Arguments
@@ -115,10 +115,10 @@ pub fn i32_to_u32(x: i32) -> u32 {
     result
 }
 
-/// Safely converts a u32 to i32, clamping values above i32::MAX.
+/// Safely converts a u32 to i32, clamping values above `i32::MAX`.
 ///
 /// This function handles the case where a u32 value is too large
-/// to fit in an i32. Such values are clamped to i32::MAX.
+/// to fit in an i32. Such values are clamped to `i32::MAX`.
 ///
 /// # Arguments
 ///
@@ -126,7 +126,7 @@ pub fn i32_to_u32(x: i32) -> u32 {
 ///
 /// # Returns
 ///
-/// Returns the converted i32 value, clamped to i32::MAX if necessary
+/// Returns the converted i32 value, clamped to `i32::MAX` if necessary
 ///
 /// # Examples
 ///

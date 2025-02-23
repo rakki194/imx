@@ -52,14 +52,14 @@ const TOP_PADDING: u32 = 40;
 /// A pair of fonts for rendering text and emoji characters.
 ///
 /// This struct manages two fonts:
-/// - A main font (DejaVu Sans) for regular text
+/// - A main font (`DejaVu` Sans) for regular text
 /// - An emoji font (Noto Color Emoji) for emoji characters
 ///
 /// The struct automatically selects the appropriate font for each character
 /// based on glyph availability.
 #[derive(Clone, Copy)]
 struct FontPair<'a> {
-    /// Main font for regular text (DejaVu Sans)
+    /// Main font for regular text (`DejaVu` Sans)
     main: &'a FontRef<'a>,
     /// Emoji font for emoji characters (Noto Color Emoji)
     emoji: &'a FontRef<'a>,
