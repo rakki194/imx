@@ -43,7 +43,7 @@ use ab_glyph::{Font, FontRef, GlyphId, Point, PxScale, ScaleFont};
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use rgb::FromSlice;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Constants for layout
 /// Space reserved at the top of the plot for labels and padding
@@ -237,6 +237,135 @@ pub struct PlotConfig {
     pub column_labels: Vec<String>,
 }
 
+fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
+    let PlotConfig {
+        images,
+        rows,
+        row_labels,
+        column_labels,
+        ..
+    } = config;
+
+    if !row_labels.is_empty() && row_labels.len() != *rows as usize {
+        anyhow::bail!(
+            "Number of row labels ({}) should match the number of rows ({})",
+            row_labels.len(),
+            rows
+        );
+    }
+
+    let cols = u32::try_from(images.len())
+        .map_err(|_| anyhow::anyhow!("Too many images"))?
+        .div_ceil(*rows);
+
+    if !column_labels.is_empty() && column_labels.len() != cols as usize {
+        anyhow::bail!(
+            "Number of column labels ({}) should match the number of columns ({})",
+            column_labels.len(),
+            cols
+        );
+    }
+
+    Ok(cols)
+}
+
+/// Loads and initializes the fonts for text rendering.
+///
+/// This function loads both the main font (DejaVu Sans) and emoji font (Noto Color Emoji)
+/// from embedded binary data. The fonts are stored as static data to ensure they live
+/// for the entire program duration.
+fn load_fonts() -> Result<FontPair<'static>> {
+    static MAIN_FONT_DATA: &[u8] = include_bytes!("../assets/DejaVuSans.ttf");
+    static EMOJI_FONT_DATA: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
+
+    let main_font = FontRef::try_from_slice(MAIN_FONT_DATA).context("Failed to load main font")?;
+    let emoji_font = FontRef::try_from_slice(EMOJI_FONT_DATA).context("Failed to load emoji font")?;
+
+    // Convert the fonts to 'static lifetime since they're using static data
+    let main_font: &'static FontRef<'static> = unsafe { std::mem::transmute(&main_font) };
+    let emoji_font: &'static FontRef<'static> = unsafe { std::mem::transmute(&emoji_font) };
+
+    Ok(FontPair {
+        main: main_font,
+        emoji: emoji_font,
+    })
+}
+
+fn calculate_left_padding(row_labels: &[String], fonts: FontPair) -> i32 {
+    if row_labels.iter().any(|l| !l.is_empty()) {
+        let max_label_width = row_labels
+            .iter()
+            .map(|label| {
+                let mut width = 0.0;
+                for c in label.chars() {
+                    let (id, font) = fonts.glyph_id(c);
+                    let scaled_font = font.as_scaled(PxScale::from(24.0));
+                    width += scaled_font.h_advance(id);
+                }
+                width
+            })
+            .fold(0.0, f32::max);
+
+        f32_to_i32(max_label_width + 40.0)
+    } else {
+        0
+    }
+}
+
+fn find_max_dimensions(images: &[PathBuf]) -> Result<(u32, u32)> {
+    let mut max_width = 0;
+    let mut max_height = 0;
+    for img_path in images {
+        let img = image::open(img_path)
+            .with_context(|| format!("Failed to open image: {img_path:?}"))?
+            .to_rgb8();
+        let (width, height) = img.dimensions();
+        max_width = max_width.max(width);
+        max_height = max_height.max(height);
+    }
+    Ok((max_width, max_height))
+}
+
+fn draw_column_labels(
+    canvas: &mut RgbImage,
+    column_labels: &[String],
+    max_width: u32,
+    left_padding: i32,
+    fonts: FontPair,
+) {
+    for (col, label) in column_labels.iter().enumerate() {
+        let x = u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
+        let y = u32_to_i32(TOP_PADDING / 2);
+        draw_text(canvas, label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
+    }
+}
+
+fn place_image(
+    canvas: &mut RgbImage,
+    img_path: &Path,
+    x_start: u32,
+    y_start: u32,
+    max_width: u32,
+    max_height: u32,
+) -> Result<()> {
+    let img = image::open(img_path)
+        .with_context(|| format!("Failed to open image: {img_path:?}"))?
+        .to_rgb8();
+    let (img_width, img_height) = img.dimensions();
+
+    let x_offset = (max_width - img_width) / 2;
+    let y_offset = (max_height - img_height) / 2;
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        let canvas_x = x_start + x_offset + x;
+        let canvas_y = y_start + y_offset + y;
+        if canvas_x < canvas.width() && canvas_y < canvas.height() {
+            canvas.put_pixel(canvas_x, canvas_y, *pixel);
+        }
+    }
+    Ok(())
+}
+
 /// Creates a plot of images arranged in a grid with optional labels.
 ///
 /// This function creates a new image containing a grid of the input images
@@ -289,146 +418,45 @@ pub struct PlotConfig {
 /// }
 /// ```
 pub fn create_plot(config: &PlotConfig) -> Result<()> {
-    let PlotConfig {
-        images,
-        output,
-        rows,
-        row_labels,
-        column_labels,
-    } = config;
+    let cols = validate_plot_config(config)?;
+    let fonts = load_fonts()?;
+    let left_padding = calculate_left_padding(&config.row_labels, fonts);
+    let (max_width, max_height) = find_max_dimensions(&config.images)?;
 
-    // Validate inputs
-    if !row_labels.is_empty() && row_labels.len() != *rows as usize {
-        anyhow::bail!(
-            "Number of row labels ({}) should match the number of rows ({})",
-            row_labels.len(),
-            rows
-        );
-    }
-
-    let cols = u32::try_from(images.len())
-        .map_err(|_| anyhow::anyhow!("Too many images"))?
-        .div_ceil(*rows);
-
-    if !column_labels.is_empty() && column_labels.len() != cols as usize {
-        anyhow::bail!(
-            "Number of column labels ({}) should match the number of columns ({})",
-            column_labels.len(),
-            cols
-        );
-    }
-
-    // Load fonts
-    let font_data = include_bytes!("../assets/DejaVuSans.ttf");
-    let main_font = FontRef::try_from_slice(font_data).context("Failed to load main font")?;
-
-    let emoji_font_data = include_bytes!("../assets/NotoColorEmoji.ttf");
-    let emoji_font =
-        FontRef::try_from_slice(emoji_font_data).context("Failed to load emoji font")?;
-
-    let fonts = FontPair {
-        main: &main_font,
-        emoji: &emoji_font,
-    };
-
-    // Calculate dynamic left padding based on longest row label
-    let left_padding = if row_labels.iter().any(|l| !l.is_empty()) {
-        let max_label_width = row_labels
-            .iter()
-            .map(|label| {
-                let mut width = 0.0;
-                for c in label.chars() {
-                    let (id, font) = fonts.glyph_id(c);
-                    let scaled_font = font.as_scaled(PxScale::from(24.0));
-                    width += scaled_font.h_advance(id);
-                }
-                width
-            })
-            .fold(0.0, f32::max);
-
-        f32_to_i32(max_label_width + 40.0) // Add some padding after the text
-    } else {
-        0
-    };
-
-    // Find maximum image dimensions in the grid
-    let mut max_width = 0;
-    let mut max_height = 0;
-    for img_path in images {
-        let img = image::open(img_path)
-            .with_context(|| format!("Failed to open image: {img_path:?}"))?
-            .to_rgb8();
-        let (width, height) = img.dimensions();
-        max_width = max_width.max(width);
-        max_height = max_height.max(height);
-    }
-
-    // Calculate canvas dimensions with space for labels
-    let has_labels = !row_labels.is_empty() || !column_labels.is_empty();
+    let has_labels = !config.row_labels.is_empty() || !config.column_labels.is_empty();
     let row_height = max_height + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_height = row_height * rows + if has_labels { TOP_PADDING } else { 0 };
+    let canvas_height = row_height * config.rows + if has_labels { TOP_PADDING } else { 0 };
     let canvas_width = max_width * cols + i32_to_u32(left_padding);
 
-    // Create canvas
     let mut canvas = RgbImage::new(canvas_width, canvas_height);
-    // Fill with white
     for pixel in canvas.pixels_mut() {
         *pixel = Rgb([255, 255, 255]);
     }
 
-    // Add column labels
-    if !column_labels.is_empty() {
-        for (col, label) in column_labels.iter().enumerate() {
-            // Calculate x position to align with left edge of the image cell
-            let x =
-                u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
-            let y = u32_to_i32(TOP_PADDING / 2);
-
-            draw_text(&mut canvas, label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
-        }
+    if !config.column_labels.is_empty() {
+        draw_column_labels(&mut canvas, &config.column_labels, max_width, left_padding, fonts);
     }
 
-    // Place images and labels
-    for (i, img_path) in images.iter().enumerate() {
+    for (i, img_path) in config.images.iter().enumerate() {
         let i = u32::try_from(i)?;
         let row = i / cols;
         let col = i % cols;
 
-        // Calculate positions
         let x_start = col * max_width + i32_to_u32(left_padding);
         let y_start = row * row_height + TOP_PADDING;
 
-        // Add row label if provided
-        if let Some(row_label) = row_labels.get(row as usize) {
+        if let Some(row_label) = config.row_labels.get(row as usize) {
             let x = 20;
             let y = u32_to_i32(y_start + max_height / 2);
             draw_text(&mut canvas, row_label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
         }
 
-        // Load and place image
-        let img = image::open(img_path)
-            .with_context(|| format!("Failed to open image: {img_path:?}"))?
-            .to_rgb8();
-        let (img_width, img_height) = img.dimensions();
-
-        // Center the image in its cell
-        let x_offset = (max_width - img_width) / 2;
-        let y_offset = (max_height - img_height) / 2;
-
-        // Copy image to canvas
-        for (x, y, pixel) in img.enumerate_pixels() {
-            let canvas_x = x_start + x_offset + x;
-            let canvas_y = y_start + y_offset + y;
-            if canvas_x < canvas_width && canvas_y < canvas_height {
-                canvas.put_pixel(canvas_x, canvas_y, *pixel);
-            }
-        }
+        place_image(&mut canvas, img_path, x_start, y_start, max_width, max_height)?;
     }
 
-    // Save the generated plot
     canvas
-        .save(output)
-        .with_context(|| format!("Failed to save output image: {output:?}"))?;
+        .save(&config.output)
+        .with_context(|| format!("Failed to save output image: {:?}", config.output))?;
 
     Ok(())
 }
