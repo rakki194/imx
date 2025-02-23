@@ -3,6 +3,7 @@
 pub mod image_processing;
 pub mod jxl;
 pub mod numeric;
+pub mod xyplot;
 
 // Re-export commonly used types and functions
 pub use image_processing::{
@@ -10,10 +11,12 @@ pub use image_processing::{
     remove_letterbox_with_threshold, remove_transparency,
 };
 pub use jxl::{convert_jxl_to_png, is_jxl_file, process_jxl_file};
+pub use xyplot::{create_plot, PlotConfig};
 
 #[cfg(test)]
 mod tests {
     mod image_processing_tests;
     mod jxl_tests;
     mod numeric_tests;
+    mod xyplot_tests;
 }

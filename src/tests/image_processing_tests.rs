@@ -55,33 +55,47 @@ fn test_is_image_file() {
     // Create valid image files
     let jpeg_path = create_file(
         "test.jpg",
-        &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01],
+        &[
+            0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+        ],
     );
     let png_path = create_file(
         "test.png",
-        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D],
+        &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        ],
     );
     let webp_path = create_file(
         "test.webp",
-        &[0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50],
+        &[
+            0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+        ],
     );
     let jxl_path = create_file(
         "test.jxl",
-        &[0xFF, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        &[
+            0xFF, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
     );
 
     // Create mismatched extension files
     let png_as_jpg = create_file(
         "actually_png.jpg",
-        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D],
+        &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        ],
     );
     let jpeg_as_png = create_file(
         "actually_jpeg.png",
-        &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01],
+        &[
+            0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+        ],
     );
     let webp_as_jxl = create_file(
         "actually_webp.jxl",
-        &[0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50],
+        &[
+            0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+        ],
     );
 
     // Create invalid files
@@ -92,14 +106,28 @@ fn test_is_image_file() {
     let no_ext = create_file("no_extension", b"no extension file");
     let uppercase_ext = create_file(
         "TEST.PNG",
-        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D],
+        &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        ],
     );
 
     // Test valid images with correct extensions
-    assert!(image_processing::is_image_file(&jpeg_path), "Valid JPEG not recognized");
-    assert!(image_processing::is_image_file(&png_path), "Valid PNG not recognized");
-    assert!(image_processing::is_image_file(&webp_path), "Valid WebP not recognized");
-    assert!(image_processing::is_image_file(&jxl_path), "Valid JXL not recognized");
+    assert!(
+        image_processing::is_image_file(&jpeg_path),
+        "Valid JPEG not recognized"
+    );
+    assert!(
+        image_processing::is_image_file(&png_path),
+        "Valid PNG not recognized"
+    );
+    assert!(
+        image_processing::is_image_file(&webp_path),
+        "Valid WebP not recognized"
+    );
+    assert!(
+        image_processing::is_image_file(&jxl_path),
+        "Valid JXL not recognized"
+    );
     assert!(
         image_processing::is_image_file(&uppercase_ext),
         "Valid PNG with uppercase extension not recognized"
@@ -120,11 +148,26 @@ fn test_is_image_file() {
     );
 
     // Test invalid files
-    assert!(!image_processing::is_image_file(&fake_jpg), "Invalid JPEG content accepted");
-    assert!(!image_processing::is_image_file(&empty_png), "Empty PNG file accepted");
-    assert!(!image_processing::is_image_file(&small_webp), "Incomplete WebP file accepted");
-    assert!(!image_processing::is_image_file(&text_file), "Text file accepted as image");
-    assert!(!image_processing::is_image_file(&no_ext), "File without extension accepted");
+    assert!(
+        !image_processing::is_image_file(&fake_jpg),
+        "Invalid JPEG content accepted"
+    );
+    assert!(
+        !image_processing::is_image_file(&empty_png),
+        "Empty PNG file accepted"
+    );
+    assert!(
+        !image_processing::is_image_file(&small_webp),
+        "Incomplete WebP file accepted"
+    );
+    assert!(
+        !image_processing::is_image_file(&text_file),
+        "Text file accepted as image"
+    );
+    assert!(
+        !image_processing::is_image_file(&no_ext),
+        "File without extension accepted"
+    );
 
     // Test non-existent file
     assert!(

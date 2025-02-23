@@ -91,7 +91,11 @@ fn test_f32_to_u8() {
 }
 
 #[test]
-#[allow(clippy::float_cmp, clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::float_cmp,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation
+)]
 fn test_i32_to_f32_for_pos() {
     // Test typical screen coordinate values
     assert_eq!(numeric::i32_to_f32_for_pos(0), 0.0);

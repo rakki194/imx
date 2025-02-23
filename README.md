@@ -1,6 +1,6 @@
 # imx
 
-A Rust library for image processing and manipulation, providing functionality for letterbox removal, transparency handling, and JXL format support.
+A Rust library for image processing and manipulation, providing functionality for letterbox removal, transparency handling, JXL format support, and image grid plotting.
 
 ## Features
 
@@ -9,6 +9,7 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Remove transparency (convert to black)
   - Get image dimensions
   - Process images in batches
+  - Create image grid plots with labels
 - 📸 Format Support
   - JPEG/JPG
   - PNG
@@ -27,7 +28,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-imx = "0.1.3"
+imx = "0.1.5"
 ```
 
 ## Usage Examples
@@ -66,6 +67,32 @@ async fn process_jxl() -> Result<()> {
             Ok(())
         })).await?;
     }
+    Ok(())
+}
+```
+
+### Create Image Grid Plots
+
+```rust
+use imx::{PlotConfig, create_plot};
+use std::path::PathBuf;
+use anyhow::Result;
+
+fn create_image_grid() -> Result<()> {
+    let config = PlotConfig {
+        images: vec![
+            PathBuf::from("image1.jpg"),
+            PathBuf::from("image2.jpg"),
+            PathBuf::from("image3.jpg"),
+            PathBuf::from("image4.jpg"),
+        ],
+        output: PathBuf::from("output.jpg"),
+        rows: 2,
+        row_labels: vec!["Row 1".to_string(), "Row 2".to_string()],
+        column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+    };
+
+    create_plot(&config)?;
     Ok(())
 }
 ```
@@ -157,6 +184,7 @@ The test suite includes:
 - Error handling tests
 - Format-specific tests (JXL, PNG, etc.)
 - Numeric conversion tests
+- Grid plotting tests
 
 ## Contributing
 

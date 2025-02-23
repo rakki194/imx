@@ -69,7 +69,9 @@ pub fn detect_image_format(buffer: &[u8; 12]) -> Option<DetectedImageFormat> {
     match buffer {
         [0xFF, 0xD8, 0xFF, ..] => Some(DetectedImageFormat::Jpeg),
         [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some(DetectedImageFormat::Png),
-        [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50] => Some(DetectedImageFormat::WebP),
+        [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50] => {
+            Some(DetectedImageFormat::WebP)
+        }
         [0xFF, 0x0A, ..] => Some(DetectedImageFormat::Jxl),
         _ => None,
     }
@@ -79,14 +81,15 @@ pub fn detect_image_format(buffer: &[u8; 12]) -> Option<DetectedImageFormat> {
 #[must_use = "Determines if the path is an image file and the result should be checked"]
 pub fn is_image_file(path: &Path) -> bool {
     // Get the file extension
-    let extension = path.extension()
+    let extension = path
+        .extension()
         .and_then(|e| e.to_str())
         .map(str::to_lowercase);
 
     // Check if it's a supported extension
-    let has_valid_extension = extension.as_deref().is_some_and(|ext| {
-        matches!(ext, "jpg" | "jpeg" | "png" | "jxl" | "webp")
-    });
+    let has_valid_extension = extension
+        .as_deref()
+        .is_some_and(|ext| matches!(ext, "jpg" | "jpeg" | "png" | "jxl" | "webp"));
 
     if !has_valid_extension {
         return false;
@@ -112,12 +115,12 @@ pub fn is_image_file(path: &Path) -> bool {
                 }
                 return true;
             }
-            
+
             // Try to open with image crate as fallback
             return image::open(path).is_ok();
         }
     }
-    
+
     false
 }
 
