@@ -44,6 +44,7 @@ use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use rgb::FromSlice;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 // Constants for layout
 /// Space reserved at the top of the plot for labels and padding
@@ -275,15 +276,21 @@ fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
 /// from embedded binary data. The fonts are stored as static data to ensure they live
 /// for the entire program duration.
 fn load_fonts() -> Result<FontPair<'static>> {
+    // Define static font data
     static MAIN_FONT_DATA: &[u8] = include_bytes!("../assets/DejaVuSans.ttf");
     static EMOJI_FONT_DATA: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
 
-    let main_font = FontRef::try_from_slice(MAIN_FONT_DATA).context("Failed to load main font")?;
-    let emoji_font = FontRef::try_from_slice(EMOJI_FONT_DATA).context("Failed to load emoji font")?;
+    // Create static fonts using lazy_static or once_cell pattern
+    static MAIN_FONT: OnceLock<FontRef<'static>> = OnceLock::new();
+    static EMOJI_FONT: OnceLock<FontRef<'static>> = OnceLock::new();
 
-    // Convert the fonts to 'static lifetime since they're using static data
-    let main_font: &'static FontRef<'static> = unsafe { std::mem::transmute(&main_font) };
-    let emoji_font: &'static FontRef<'static> = unsafe { std::mem::transmute(&emoji_font) };
+    // Initialize fonts if not already initialized
+    let main_font = MAIN_FONT.get_or_init(|| {
+        FontRef::try_from_slice(MAIN_FONT_DATA).expect("Failed to load main font")
+    });
+    let emoji_font = EMOJI_FONT.get_or_init(|| {
+        FontRef::try_from_slice(EMOJI_FONT_DATA).expect("Failed to load emoji font")
+    });
 
     Ok(FontPair {
         main: main_font,
