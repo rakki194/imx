@@ -271,7 +271,7 @@ fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
 
 /// Loads and initializes the fonts for text rendering.
 ///
-/// This function loads both the main font (DejaVu Sans) and emoji font (Noto Color Emoji)
+/// This function loads both the main font (`DejaVu` Sans) and emoji font (Noto Color Emoji)
 /// from embedded binary data. The fonts are stored as static data to ensure they live
 /// for the entire program duration.
 fn load_fonts() -> Result<FontPair<'static>> {
