@@ -10,6 +10,7 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Get image dimensions
   - Process images in batches
   - Create image grid plots with labels
+  - Safe numeric conversions for image data
 - 📸 Format Support
   - JPEG/JPG
   - PNG
@@ -21,6 +22,8 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Error handling with detailed context
   - Structured logging with info/warn levels
   - Safe numeric type conversions (f32 ↔ i32 ↔ u32 ↔ u8)
+  - Unicode text rendering with emoji support
+  - Automatic image scaling and alignment
 
 ## Installation
 
@@ -33,10 +36,10 @@ imx = "0.1.7"
 
 ## Usage Examples
 
-### Remove Letterboxing
+### Image Processing
 
 ```rust
-use imx::{remove_letterbox, remove_letterbox_with_threshold};
+use imx::{remove_letterbox, remove_letterbox_with_threshold, remove_transparency};
 use anyhow::Result;
 use std::path::Path;
 
@@ -46,18 +49,22 @@ async fn process_image() -> Result<()> {
 
     // Remove letterboxing with custom threshold (15 for near-black pixels)
     remove_letterbox_with_threshold(Path::new("path/to/image.png"), 15).await?;
+
+    // Remove transparency (convert transparent pixels to black)
+    remove_transparency(Path::new("path/to/image.png")).await?;
+
     Ok(())
 }
 ```
 
-### Process JXL Images
+### JXL Processing
 
 The JXL processing functions require careful handling of lifetimes. Here are the recommended patterns:
 
 ```rust
-use imx::{is_jxl_file, process_jxl_file, convert_jxl_to_png};
+use imx::jxl::{is_jxl_file, process_jxl_file, convert_jxl_to_png};
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -93,6 +100,14 @@ async fn process_jxl_separate_fn() -> Result<()> {
     }
     Ok(())
 }
+
+// Direct JXL to PNG conversion
+async fn convert_jxl() -> Result<()> {
+    let input = Path::new("input.jxl");
+    let output = Path::new("output.png");
+    convert_jxl_to_png(input, output).await?;
+    Ok(())
+}
 ```
 
 ### Create Image Grid Plots
@@ -121,37 +136,10 @@ fn create_image_grid() -> Result<()> {
 }
 ```
 
-### Remove Transparency
-
-```rust
-use imx::remove_transparency;
-use anyhow::Result;
-use std::path::Path;
-
-async fn process_transparent_image() -> Result<()> {
-    remove_transparency(Path::new("path/to/image.png")).await?;
-    Ok(())
-}
-```
-
-### Get Image Dimensions
-
-```rust
-use imx::get_image_dimensions;
-use anyhow::Result;
-use std::path::Path;
-
-fn check_image_size() -> Result<()> {
-    let (width, height) = get_image_dimensions(Path::new("path/to/image.jpg"))?;
-    println!("Image dimensions: {}x{}", width, height);
-    Ok(())
-}
-```
-
 ### Safe Numeric Conversions
 
 ```rust
-use imx::numeric::{f32_to_i32, i32_to_u32, f32_to_u8};
+use imx::numeric::{f32_to_i32, i32_to_u32, f32_to_u8, i32_to_f32_for_pos};
 
 fn convert_numbers() {
     // Safe f32 to i32 conversion (handles NaN, infinity, and out-of-range values)
@@ -165,6 +153,9 @@ fn convert_numbers() {
     // Safe f32 to u8 conversion (clamps to 0..=255)
     let byte_val = f32_to_u8(300.0); // Returns 255
     assert_eq!(f32_to_u8(-5.0), 0); // Negative becomes 0
+
+    // Safe i32 to f32 conversion for text positioning
+    let pos = i32_to_f32_for_pos(42); // Converts to 42.0
 }
 ```
 
@@ -178,6 +169,7 @@ fn check_files() {
     // Checks both extension and magic numbers for validation
     assert!(is_image_file(Path::new("image.jpg")));
     assert!(is_image_file(Path::new("image.png")));
+    assert!(is_image_file(Path::new("image.webp")));
     assert!(is_image_file(Path::new("image.jxl")));
     
     // JXL-specific check
@@ -212,6 +204,8 @@ async fn process_with_error_handling(path: &str) -> Result<()> {
 3. **Error Handling**: Use `.with_context()` to add meaningful error messages
 4. **Async Functions**: Most image processing functions are async - use them with `.await`
 5. **Type Safety**: Use the provided numeric conversion functions instead of raw casts
+6. **Grid Plotting**: Ensure consistent image dimensions for best results
+7. **Labels**: Unicode and emoji are supported in grid plot labels
 
 ## Testing
 
@@ -222,7 +216,6 @@ cargo test
 ```
 
 The test suite includes:
-
 - Unit tests for all major functions
 - Integration tests with sample images
 - Error handling tests
