@@ -279,7 +279,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
     // Save the generated plot
     canvas
         .save(output)
-        .with_context(|| format!("Failed to save output image: {:?}", output))?;
+        .with_context(|| format!("Failed to save output image: {output:?}"))?;
 
     Ok(())
 }
