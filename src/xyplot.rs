@@ -184,32 +184,6 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         );
     }
 
-    // Read the first image to determine dimensions
-    let first_image = image::open(&images[0])
-        .with_context(|| format!("Failed to open first image: {:?}", &images[0]))?
-        .to_rgb8();
-    let (image_width, image_height) = first_image.dimensions();
-
-    // Define canvas dimensions
-    let left_padding = if row_labels.iter().any(|l| !l.is_empty()) {
-        150 // Space for row labels
-    } else {
-        0
-    };
-
-    // Calculate canvas dimensions with space for labels
-    let has_labels = !row_labels.is_empty() || !column_labels.is_empty();
-    let row_height = image_height + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_height = row_height * rows + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_width = image_width * cols + left_padding;
-
-    // Create canvas
-    let mut canvas = RgbImage::new(canvas_width, canvas_height);
-    // Fill with white
-    for pixel in canvas.pixels_mut() {
-        *pixel = Rgb([255, 255, 255]);
-    }
-
     // Load fonts
     let font_data = include_bytes!("../assets/DejaVuSans.ttf");
     let main_font = FontRef::try_from_slice(font_data).context("Failed to load main font")?;
@@ -223,21 +197,63 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         emoji: &emoji_font,
     };
 
+    // Calculate dynamic left padding based on longest row label
+    let left_padding = if row_labels.iter().any(|l| !l.is_empty()) {
+        let max_label_width = row_labels
+            .iter()
+            .map(|label| {
+                let mut width = 0.0;
+                for c in label.chars() {
+                    let (id, font) = fonts.glyph_id(c);
+                    let scaled_font = font.as_scaled(PxScale::from(24.0));
+                    width += scaled_font.h_advance(id);
+                }
+                width
+            })
+            .fold(0.0, f32::max);
+        
+        f32_to_i32(max_label_width + 40.0) // Add some padding after the text
+    } else {
+        0
+    };
+
+    // Find maximum image dimensions in the grid
+    let mut max_width = 0;
+    let mut max_height = 0;
+    for img_path in images {
+        let img = image::open(img_path)
+            .with_context(|| format!("Failed to open image: {img_path:?}"))?
+            .to_rgb8();
+        let (width, height) = img.dimensions();
+        max_width = max_width.max(width);
+        max_height = max_height.max(height);
+    }
+
+    // Calculate canvas dimensions with space for labels
+    let has_labels = !row_labels.is_empty() || !column_labels.is_empty();
+    let row_height = max_height + if has_labels { TOP_PADDING } else { 0 };
+    let canvas_height = row_height * rows + if has_labels { TOP_PADDING } else { 0 };
+    let canvas_width = max_width * cols + i32_to_u32(left_padding);
+
+    // Create canvas
+    let mut canvas = RgbImage::new(canvas_width, canvas_height);
+    // Fill with white
+    for pixel in canvas.pixels_mut() {
+        *pixel = Rgb([255, 255, 255]);
+    }
+
     // Add column labels
     if !column_labels.is_empty() {
         for (col, label) in column_labels.iter().enumerate() {
             let x = u32_to_i32(
-                u32::try_from(col).unwrap_or(0) * image_width + left_padding + image_width / 2,
+                u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding),
             );
             let y = u32_to_i32(TOP_PADDING / 2);
-
-            #[allow(clippy::cast_precision_loss)]
-            let label_offset = (label.len() as f32) * 20.0 / 2.0;
 
             draw_text(
                 &mut canvas,
                 label,
-                x - f32_to_i32(label_offset),
+                x,
                 y,
                 24.0,
                 fonts,
@@ -253,13 +269,13 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         let col = i % cols;
 
         // Calculate positions
-        let x_start = col * image_width + left_padding;
+        let x_start = col * max_width + i32_to_u32(left_padding);
         let y_start = row * row_height + TOP_PADDING;
 
         // Add row label if provided
         if let Some(row_label) = row_labels.get(row as usize) {
             let x = 20;
-            let y = u32_to_i32(y_start + image_height / 2);
+            let y = u32_to_i32(y_start + max_height / 2);
             draw_text(&mut canvas, row_label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
         }
 
@@ -267,11 +283,18 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         let img = image::open(img_path)
             .with_context(|| format!("Failed to open image: {img_path:?}"))?
             .to_rgb8();
+        let (img_width, img_height) = img.dimensions();
+
+        // Center the image in its cell
+        let x_offset = (max_width - img_width) / 2;
+        let y_offset = (max_height - img_height) / 2;
 
         // Copy image to canvas
         for (x, y, pixel) in img.enumerate_pixels() {
-            if x_start + x < canvas_width && y_start + y < canvas_height {
-                canvas.put_pixel(x_start + x, y_start + y, *pixel);
+            let canvas_x = x_start + x_offset + x;
+            let canvas_y = y_start + y_offset + y;
+            if canvas_x < canvas_width && canvas_y < canvas_height {
+                canvas.put_pixel(canvas_x, canvas_y, *pixel);
             }
         }
     }

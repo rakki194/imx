@@ -222,3 +222,91 @@ fn test_empty_labels() -> Result<()> {
     assert!(output_path.exists());
     Ok(())
 }
+
+#[test]
+fn test_dynamic_padding() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+
+    // Test with a very long row label
+    let config = PlotConfig {
+        images: vec![img1_path],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec!["This is a very long row label that should cause more padding".to_string()],
+        column_labels: vec!["Col 1".to_string()],
+    };
+
+    create_plot(&config)?;
+    
+    // Verify the output exists and has correct dimensions
+    let output_img = image::open(&output_path)?;
+    let (width, _) = output_img.dimensions();
+    assert!(width > 500); // Should have significant padding for the long label
+    
+    Ok(())
+}
+
+#[test]
+fn test_different_size_images() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let img2_path = temp_dir.path().join("test2.png");
+    let img3_path = temp_dir.path().join("test3.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    // Create images with different dimensions
+    create_test_image(&img1_path, 100, 100)?;
+    create_test_image(&img2_path, 200, 150)?;
+    create_test_image(&img3_path, 150, 200)?;
+
+    let config = PlotConfig {
+        images: vec![img1_path, img2_path, img3_path],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec!["Row 1".to_string()],
+        column_labels: vec!["Small".to_string(), "Wide".to_string(), "Tall".to_string()],
+    };
+
+    create_plot(&config)?;
+    
+    // Verify the output exists and has correct dimensions
+    let output_img = image::open(&output_path)?;
+    let (width, height) = output_img.dimensions();
+    
+    // The height should accommodate the tallest image (200) plus padding
+    assert!(height > 200);
+    // The width should accommodate 3 images of width 200 (the widest) plus padding
+    assert!(width > 600);
+    
+    Ok(())
+}
+
+#[test]
+fn test_label_alignment() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let img2_path = temp_dir.path().join("test2.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+    create_test_image(&img2_path, 100, 100)?;
+
+    let config = PlotConfig {
+        images: vec![img1_path, img2_path],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec!["Test Row".to_string()],
+        column_labels: vec!["First".to_string(), "Second".to_string()],
+    };
+
+    create_plot(&config)?;
+    
+    // Verify the output exists
+    assert!(output_path.exists());
+    
+    Ok(())
+}
