@@ -1,3 +1,43 @@
+//! XY plotting module for creating image grids with labels.
+//!
+//! This module provides functionality for creating plots of images arranged in a grid layout
+//! with optional row and column labels. Features include:
+//!
+//! - Flexible grid layout with customizable rows and columns
+//! - Support for row and column labels
+//! - Unicode text rendering with emoji support
+//! - Automatic image scaling and alignment
+//! - White background with configurable text colors
+//!
+//! The module uses the `ab_glyph` library for text rendering and supports both regular text
+//! (using DejaVu Sans) and emoji (using Noto Color Emoji).
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use std::path::PathBuf;
+//! use anyhow::Result;
+//! use imx::xyplot::{PlotConfig, create_plot};
+//!
+//! async fn example() -> Result<()> {
+//!     let config = PlotConfig {
+//!         images: vec![
+//!             PathBuf::from("image1.png"),
+//!             PathBuf::from("image2.png"),
+//!         ],
+//!         output: PathBuf::from("output.png"),
+//!         rows: 1,
+//!         row_labels: vec!["Row 1".to_string()],
+//!         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+//!     };
+//!
+//!     create_plot(&config)?;
+//!     Ok(())
+//! }
+//! ```
+
+#![warn(clippy::all, clippy::pedantic)]
+
 use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32, u32_to_i32};
 use ab_glyph::{Font, FontRef, GlyphId, Point, PxScale, ScaleFont};
 use anyhow::{Context, Result};
@@ -6,15 +46,40 @@ use rgb::FromSlice;
 use std::path::PathBuf;
 
 // Constants for layout
-const TOP_PADDING: u32 = 40; // Space for labels and padding at the top
+/// Space reserved at the top of the plot for labels and padding
+const TOP_PADDING: u32 = 40;
 
+/// A pair of fonts for rendering text and emoji characters.
+///
+/// This struct manages two fonts:
+/// - A main font (DejaVu Sans) for regular text
+/// - An emoji font (Noto Color Emoji) for emoji characters
+///
+/// The struct automatically selects the appropriate font for each character
+/// based on glyph availability.
 #[derive(Clone, Copy)]
 struct FontPair<'a> {
+    /// Main font for regular text (DejaVu Sans)
     main: &'a FontRef<'a>,
+    /// Emoji font for emoji characters (Noto Color Emoji)
     emoji: &'a FontRef<'a>,
 }
 
 impl<'a> FontPair<'a> {
+    /// Gets the appropriate glyph ID and font for a character.
+    ///
+    /// This method attempts to use the main font first, falling back to
+    /// the emoji font if the character is not available in the main font.
+    ///
+    /// # Arguments
+    ///
+    /// * `c` - The character to get the glyph for
+    ///
+    /// # Returns
+    ///
+    /// Returns a tuple containing:
+    /// - The glyph ID for the character
+    /// - A reference to the font that contains the glyph
     fn glyph_id(&self, c: char) -> (GlyphId, &'a FontRef<'a>) {
         let main_id = self.main.glyph_id(c);
         // Check if the main font has a real glyph for this char (not a .notdef glyph)
@@ -27,6 +92,23 @@ impl<'a> FontPair<'a> {
     }
 }
 
+/// Draws text on an image with support for regular characters and emoji.
+///
+/// This function handles text rendering with the following features:
+/// - Mixed regular text and emoji support
+/// - Anti-aliasing with alpha blending
+/// - Color emoji rendering
+/// - Proper text positioning and scaling
+///
+/// # Arguments
+///
+/// * `canvas` - The image to draw on
+/// * `text` - The text to draw
+/// * `x` - The x-coordinate for text placement
+/// * `y` - The y-coordinate for text placement
+/// * `scale` - The font size scale factor
+/// * `fonts` - The font pair to use for rendering
+/// * `color` - The color to use for regular text (emoji use their own colors)
 fn draw_text(
     canvas: &mut RgbImage,
     text: &str,
@@ -122,26 +204,56 @@ fn draw_text(
     }
 }
 
-/// Configuration for creating an image plot
+/// Configuration for creating an image plot with labels.
+///
+/// This struct defines the layout and content of an image grid plot,
+/// including the source images, output location, and optional labels.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::PathBuf;
+/// use imx::xyplot::PlotConfig;
+///
+/// let config = PlotConfig {
+///     images: vec![PathBuf::from("image1.png")],
+///     output: PathBuf::from("output.png"),
+///     rows: 1,
+///     row_labels: vec!["Row 1".to_string()],
+///     column_labels: vec!["Col 1".to_string()],
+/// };
+/// ```
 #[derive(Debug)]
 pub struct PlotConfig {
-    /// List of image file paths to plot
+    /// List of image file paths to include in the plot
     pub images: Vec<PathBuf>,
-    /// Output file name for the generated plot
+    /// Output file path where the plot will be saved
     pub output: PathBuf,
-    /// Number of rows to display the images
+    /// Number of rows in the image grid
     pub rows: u32,
-    /// List of optional labels for each row
+    /// Optional labels for each row (empty Vec for no labels)
     pub row_labels: Vec<String>,
-    /// List of optional labels for each column
+    /// Optional labels for each column (empty Vec for no labels)
     pub column_labels: Vec<String>,
 }
 
-/// Creates a plot of images arranged in a grid with optional labels
+/// Creates a plot of images arranged in a grid with optional labels.
+///
+/// This function creates a new image containing a grid of the input images
+/// with optional row and column labels. The layout is determined by the
+/// specified number of rows, with columns calculated automatically based
+/// on the number of input images.
+///
+/// Features:
+/// - Automatic grid layout calculation
+/// - Optional row and column labels
+/// - White background
+/// - Unicode text support with emoji
+/// - Automatic image spacing and alignment
 ///
 /// # Arguments
 ///
-/// * `config` - Configuration for the plot including images, layout, and labels
+/// * `config` - Configuration struct specifying the plot layout and content
 ///
 /// # Returns
 ///
@@ -151,9 +263,31 @@ pub struct PlotConfig {
 ///
 /// Returns an error if:
 /// * The number of row labels doesn't match the number of rows
-/// * The number of column labels doesn't match the number of columns
-/// * Any image file cannot be opened
+/// * The number of column labels doesn't match the calculated number of columns
+/// * Any input image file cannot be opened or is invalid
+/// * The fonts cannot be loaded
 /// * The output file cannot be written
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::PathBuf;
+/// use anyhow::Result;
+/// use imx::xyplot::{PlotConfig, create_plot};
+///
+/// fn example() -> Result<()> {
+///     let config = PlotConfig {
+///         images: vec![PathBuf::from("image1.png")],
+///         output: PathBuf::from("output.png"),
+///         rows: 1,
+///         row_labels: vec!["Row 1".to_string()],
+///         column_labels: vec!["Col 1".to_string()],
+///     };
+///
+///     create_plot(&config)?;
+///     Ok(())
+/// }
+/// ```
 pub fn create_plot(config: &PlotConfig) -> Result<()> {
     let PlotConfig {
         images,
@@ -211,7 +345,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
                 width
             })
             .fold(0.0, f32::max);
-        
+
         f32_to_i32(max_label_width + 40.0) // Add some padding after the text
     } else {
         0
@@ -245,20 +379,12 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
     // Add column labels
     if !column_labels.is_empty() {
         for (col, label) in column_labels.iter().enumerate() {
-            let x = u32_to_i32(
-                u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding),
-            );
+            // Calculate x position to align with left edge of the image cell
+            let x =
+                u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
             let y = u32_to_i32(TOP_PADDING / 2);
 
-            draw_text(
-                &mut canvas,
-                label,
-                x,
-                y,
-                24.0,
-                fonts,
-                Rgb([0, 0, 0]),
-            );
+            draw_text(&mut canvas, label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
         }
     }
 

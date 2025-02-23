@@ -1,12 +1,48 @@
+//! JPEG XL image format handling module.
+//!
+//! This module provides functionality for working with JPEG XL (JXL) image files, including:
+//! - JXL file detection
+//! - Conversion from JXL to PNG format
+//! - Processing JXL files with custom transformations
+//!
+//! The module uses the `jxl-oxide` crate for JXL decoding and supports both RGB and RGBA color formats.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use std::path::Path;
+//! use imx::jxl::{convert_jxl_to_png, process_jxl_file};
+//!
+//! async fn process_jxl() -> anyhow::Result<()> {
+//!     let input = Path::new("image.jxl");
+//!     let output = Path::new("image.png");
+//!     
+//!     // Simple conversion
+//!     convert_jxl_to_png(input, output).await?;
+//!     
+//!     // Process with custom function
+//!     process_jxl_file(input, Some(|path| async move {
+//!         // Custom processing logic here
+//!         Ok(())
+//!     })).await?;
+//!     
+//!     Ok(())
+//! }
+//! ```
+
 #![warn(clippy::all, clippy::pedantic)]
 
 use anyhow::{Context, Result};
 use image::{ImageBuffer, Rgba};
 use jxl_oxide::{JxlImage, PixelFormat};
 use log::info;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-/// Check if a file is a JXL image
+/// Checks if a file is a JPEG XL image by examining its file extension.
+///
+/// This function performs a case-insensitive check for the ".jxl" extension.
+/// Note that this is a simple extension check and does not verify the file contents.
+/// For more thorough validation, use `convert_jxl_to_png` which will attempt to decode the file.
 ///
 /// # Arguments
 ///
@@ -14,7 +50,20 @@ use std::path::Path;
 ///
 /// # Returns
 ///
-/// Returns true if the file has a .jxl extension
+/// Returns `true` if the file has a `.jxl` extension (case-insensitive), `false` otherwise
+///
+/// # Examples
+///
+/// ```rust
+/// use std::path::Path;
+/// use imx::jxl::is_jxl_file;
+///
+/// let path = Path::new("image.jxl");
+/// assert!(is_jxl_file(path));
+///
+/// let path = Path::new("image.png");
+/// assert!(!is_jxl_file(path));
+/// ```
 #[must_use]
 pub fn is_jxl_file(path: &Path) -> bool {
     path.extension()
@@ -22,7 +71,16 @@ pub fn is_jxl_file(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("jxl"))
 }
 
-/// Convert a JXL image to PNG format
+/// Converts a JPEG XL image to PNG format.
+///
+/// This function performs the following steps:
+/// 1. Reads the JXL file from disk
+/// 2. Decodes the JXL data using `jxl-oxide`
+/// 3. Converts the pixel data to RGBA format
+/// 4. Saves the result as a PNG file
+///
+/// The function supports both RGB and RGBA JXL images. For RGB images,
+/// the alpha channel will be set to fully opaque (255).
 ///
 /// # Arguments
 ///
@@ -36,10 +94,25 @@ pub fn is_jxl_file(path: &Path) -> bool {
 /// # Errors
 ///
 /// Returns an error if:
-/// * The JXL file cannot be read
-/// * The JXL file cannot be decoded
+/// * The JXL file cannot be read from disk
+/// * The JXL data is invalid or corrupted
 /// * The JXL frame cannot be rendered
-/// * The PNG file cannot be saved
+/// * The pixel format is not RGB or RGBA
+/// * The PNG file cannot be saved to disk
+///
+/// # Examples
+///
+/// ```rust
+/// use std::path::Path;
+/// use imx::jxl::convert_jxl_to_png;
+///
+/// async fn convert() -> anyhow::Result<()> {
+///     let input = Path::new("input.jxl");
+///     let output = Path::new("output.png");
+///     convert_jxl_to_png(input, output).await?;
+///     Ok(())
+/// }
+/// ```
 pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result<()> {
     info!(
         "Converting JXL to PNG: {} -> {}",
@@ -85,7 +158,7 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
                         (pixel_data[pixel_idx + 3] * 255.0) as u8,
                     ];
                     Rgba(rgba)
-                },
+                }
                 PixelFormat::Rgb => {
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     let rgb = [
@@ -95,7 +168,7 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
                         255,
                     ];
                     Rgba(rgb)
-                },
+                }
                 _ => anyhow::bail!("Unsupported JXL pixel format: {:?}", image.pixel_format()),
             };
             rgba.put_pixel(x, y, pixel);
@@ -110,12 +183,26 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
     Ok(())
 }
 
-/// Process a JXL file by converting it to PNG and optionally applying a processing function
+/// Processes a JXL file by converting it to PNG and optionally applying a custom transformation.
+///
+/// This function:
+/// 1. Verifies the input is a JXL file
+/// 2. Converts it to PNG format
+/// 3. Applies an optional processing function
+/// 4. Removes the original JXL file
+///
+/// The processor function is called with the path to the converted PNG file.
+/// This allows for additional transformations to be applied after conversion.
+///
+/// # Type Parameters
+///
+/// * `F` - Type of the processor function
+/// * `Fut` - Future type returned by the processor function
 ///
 /// # Arguments
 ///
 /// * `input_path` - Path to the input JXL file
-/// * `processor` - Optional function to process the PNG file after conversion
+/// * `processor` - Optional async function to process the PNG file after conversion
 ///
 /// # Returns
 ///
@@ -128,10 +215,30 @@ pub async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result
 /// * The JXL to PNG conversion fails
 /// * The processor function returns an error
 /// * The original JXL file cannot be removed
-pub async fn process_jxl_file<'a, F, Fut>(input_path: &Path, processor: Option<F>) -> Result<()>
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::{Path, PathBuf};
+/// use anyhow::Result;
+/// use imx::jxl::process_jxl_file;
+///
+/// async fn example() -> Result<()> {
+///     let input = Path::new("image.jxl");
+///     
+///     // Process with a custom function
+///     process_jxl_file(input, Some(|path: PathBuf| async move {
+///         // Custom processing logic here
+///         Ok(())
+///     })).await?;
+///     
+///     Ok(())
+/// }
+/// ```
+pub async fn process_jxl_file<F, Fut>(input_path: &Path, processor: Option<F>) -> Result<()>
 where
-    F: for<'r> FnOnce(&'r Path) -> Fut + Send + 'a,
-    Fut: std::future::Future<Output = Result<()>> + Send + 'a,
+    F: FnOnce(PathBuf) -> Fut + Send,
+    Fut: std::future::Future<Output = Result<()>> + Send,
 {
     if !is_jxl_file(input_path) {
         anyhow::bail!("Not a JXL file: {}", input_path.display());
@@ -145,7 +252,7 @@ where
 
     // Apply processor if provided
     if let Some(processor) = processor {
-        processor(&png_path).await?;
+        processor(png_path.clone()).await?;
     }
 
     // Delete original JXL file

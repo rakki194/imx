@@ -1,3 +1,31 @@
+//! Image processing module for handling various image formats and transformations.
+//!
+//! This module provides functionality for:
+//! - Image format detection and validation
+//! - Transparency handling and removal
+//! - Letterbox detection and removal
+//! - Image dimension querying
+//! - Batch image processing
+//!
+//! # Examples
+//!
+//! ```rust
+//! use std::path::Path;
+//! use imx::image_processing::{remove_transparency, remove_letterbox};
+//!
+//! async fn process_images() -> anyhow::Result<()> {
+//!     let image_path = Path::new("image.png");
+//!     
+//!     // Remove transparency from an image
+//!     remove_transparency(image_path).await?;
+//!     
+//!     // Remove letterboxing
+//!     remove_letterbox(image_path).await?;
+//!     
+//!     Ok(())
+//! }
+//! ```
+
 #![warn(clippy::all, clippy::pedantic)]
 
 use anyhow::{Context, Result};
@@ -8,15 +36,18 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 
 /// Represents a detected image format based on file magic numbers
+///
+/// This enum provides a type-safe way to handle different image formats
+/// and includes methods for working with file extensions and format conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DetectedImageFormat {
-    /// JPEG image format
+    /// JPEG image format (magic numbers: FF D8 FF)
     Jpeg,
-    /// PNG image format
+    /// PNG image format (magic numbers: 89 50 4E 47 0D 0A 1A 0A)
     Png,
-    /// WebP image format
+    /// WebP image format (magic numbers: 52 49 46 46 ... 57 45 42 50)
     WebP,
-    /// JPEG XL image format
+    /// JPEG XL image format (magic numbers: FF 0A)
     Jxl,
 }
 
@@ -301,12 +332,20 @@ pub async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Resu
     Ok(())
 }
 
-/// Processes an image file with the given function.
+/// Processes an image file using the provided async processor function.
+///
+/// This is a generic function that can be used to apply any async image processing
+/// operation to a file. It handles file existence checks and error propagation.
+///
+/// # Type Parameters
+///
+/// * `F` - A function type that takes a `PathBuf` and returns a `Future`
+/// * `Fut` - The specific future type returned by `F`
 ///
 /// # Arguments
 ///
-/// * `path` - Path to the image file
-/// * `processor` - Async function that processes the image
+/// * `path` - Path to the image file to process
+/// * `processor` - Async function that performs the actual image processing
 ///
 /// # Returns
 ///
@@ -314,7 +353,26 @@ pub async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Resu
 ///
 /// # Errors
 ///
-/// Returns an error if the processor function returns an error
+/// Returns an error if:
+/// * The file does not exist
+/// * The processor function returns an error
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::PathBuf;
+/// use anyhow::Result;
+/// use imx::process_image;
+///
+/// async fn example() -> Result<()> {
+///     let path = PathBuf::from("image.png");
+///     process_image(path, |p| async move {
+///         // Process the image here
+///         Ok(())
+///     }).await?;
+///     Ok(())
+/// }
+/// ```
 pub async fn process_image<F, Fut>(path: PathBuf, processor: F) -> Result<()>
 where
     F: FnOnce(PathBuf) -> Fut,

@@ -4,6 +4,7 @@ use crate::jxl;
 use std::fs;
 use std::future::Future;
 use std::io::Write;
+use std::path::PathBuf;
 use std::pin::Pin;
 use tempfile::TempDir;
 
@@ -22,7 +23,7 @@ async fn test_process_jxl_file_invalid_extension() -> anyhow::Result<()> {
     fs::write(&invalid_file, b"not a jxl file")?;
 
     let result = jxl::process_jxl_file::<
-        fn(&std::path::Path) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>,
+        fn(PathBuf) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>,
         Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>,
     >(&invalid_file, None)
     .await;
@@ -40,8 +41,7 @@ async fn test_process_jxl_file_with_processor() -> anyhow::Result<()> {
     let processed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let processed_clone = processed.clone();
 
-    let processor = move |path: &std::path::Path| {
-        let path = path.to_owned();
+    let processor = move |path: PathBuf| {
         let processed = processed_clone.clone();
         Box::pin(async move {
             // Create a PNG file since JXL conversion will fail
