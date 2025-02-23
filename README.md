@@ -216,6 +216,7 @@ cargo test
 ```
 
 The test suite includes:
+
 - Unit tests for all major functions
 - Integration tests with sample images
 - Error handling tests
