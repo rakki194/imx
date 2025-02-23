@@ -1,6 +1,6 @@
 use super::super::xyplot::{PlotConfig, create_plot};
 use anyhow::Result;
-use image::{Rgb, RgbImage};
+use image::{Rgb, RgbImage, GenericImageView};
 use tempfile::tempdir;
 
 fn create_test_image(path: &std::path::Path, width: u32, height: u32) -> Result<()> {
