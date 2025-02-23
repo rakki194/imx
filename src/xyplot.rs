@@ -275,7 +275,7 @@ fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
 /// This function loads both the main font (`DejaVu` Sans) and emoji font (Noto Color Emoji)
 /// from embedded binary data. The fonts are stored as static data to ensure they live
 /// for the entire program duration.
-fn load_fonts() -> Result<FontPair<'static>> {
+fn load_fonts() -> FontPair<'static> {
     // Define static font data
     static MAIN_FONT_DATA: &[u8] = include_bytes!("../assets/DejaVuSans.ttf");
     static EMOJI_FONT_DATA: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
@@ -292,10 +292,10 @@ fn load_fonts() -> Result<FontPair<'static>> {
         FontRef::try_from_slice(EMOJI_FONT_DATA).expect("Failed to load emoji font")
     });
 
-    Ok(FontPair {
+    FontPair {
         main: main_font,
         emoji: emoji_font,
-    })
+    }
 }
 
 fn calculate_left_padding(row_labels: &[String], fonts: FontPair) -> i32 {
@@ -426,7 +426,7 @@ fn place_image(
 /// ```
 pub fn create_plot(config: &PlotConfig) -> Result<()> {
     let cols = validate_plot_config(config)?;
-    let fonts = load_fonts()?;
+    let fonts = load_fonts();
     let left_padding = calculate_left_padding(&config.row_labels, fonts);
     let (max_width, max_height) = find_max_dimensions(&config.images)?;
 
