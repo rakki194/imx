@@ -532,10 +532,11 @@ fn calculate_layout(
                     img_width_i32 - label_width_i32,
             };
             
+            let label_y = (top_padding - label_height) / 2;
             layout.add_element(LayoutElement::ColumnLabel {
                 rect: LayoutRect {
                     x: label_x,
-                    y: u32_to_i32(top_padding / 2 - label_height / 2),
+                    y: u32_to_i32(label_y),
                     width: i32_to_u32(label_width_i32),
                     height: label_height,
                 },
