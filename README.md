@@ -33,11 +33,8 @@ A Rust library for image processing and manipulation, providing functionality fo
 
 ## Installation
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-imx = "0.1.10"
+```bash
+cargo add imx
 ```
 
 ## Usage Examples
