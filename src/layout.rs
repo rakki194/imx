@@ -41,7 +41,7 @@ pub struct Layout {
 
 impl Layout {
     /// Creates a new empty layout
-    pub fn new(width: u32, height: u32) -> Self {
+    #[must_use] pub fn new(width: u32, height: u32) -> Self {
         Self {
             elements: Vec::new(),
             total_width: width,
@@ -55,7 +55,7 @@ impl Layout {
     }
 
     /// Renders the layout as a debug visualization
-    pub fn render_debug(&self) -> RgbImage {
+    #[must_use] pub fn render_debug(&self) -> RgbImage {
         let mut canvas = RgbImage::new(self.total_width, self.total_height);
         
         // Fill with white background
@@ -76,13 +76,13 @@ impl Layout {
                     (image_color, format!("Image: {}", Path::new(path).file_name().unwrap_or_default().to_string_lossy()))
                 }
                 LayoutElement::RowLabel { text, .. } => {
-                    (row_label_color, format!("Row: {}", text))
+                    (row_label_color, format!("Row: {text}"))
                 }
                 LayoutElement::ColumnLabel { text, .. } => {
-                    (col_label_color, format!("Col: {}", text))
+                    (col_label_color, format!("Col: {text}"))
                 }
                 LayoutElement::Padding { description, .. } => {
-                    (padding_color, format!("Pad: {}", description))
+                    (padding_color, format!("Pad: {description}"))
                 }
             }.0;
 

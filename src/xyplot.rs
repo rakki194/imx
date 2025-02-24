@@ -496,7 +496,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
             config.output.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default()
         ));
         layout.render_debug().save(&debug_output)
-            .with_context(|| format!("Failed to save debug layout: {:?}", debug_output))?;
+            .with_context(|| format!("Failed to save debug layout: {debug_output:?}"))?;
     }
 
     let mut canvas = RgbImage::new(layout.total_width, layout.total_height);
