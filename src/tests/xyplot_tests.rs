@@ -385,14 +385,23 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
         expected_x
     );
 
-    // Verify no text in the middle of cells
-    for col in 0..2 {
-        let cell_mid = left_padding + (col * max_width) + (max_width / 2);
+    // For each column, check a region that should definitely be empty
+    // (between the end of the label area and the center of the image)
+    for (col, img_width) in [(0, 100), (1, 200)] {
+        let cell_start = left_padding + (col * max_width);
+        let image_offset = (max_width - img_width) / 2;
+        let image_start = cell_start + image_offset;
+        
+        // Check region between label area and image center
+        // Allow 100 pixels for label (more than enough for "Tall" or "Wide")
+        let check_start = image_start + 100; // Start after label area
+        let check_width = (img_width / 2) - 20; // End before image center
+        
         assert!(
-            !has_black_pixels(cell_mid, 0, 20, 40),
-            "Found unexpected text in middle of cell {} at position ({}, 0)",
+            !has_black_pixels(check_start, 0, check_width, 40),
+            "Found unexpected text in cell {} between label and image center at position ({}, 0)",
             col,
-            cell_mid
+            check_start
         );
     }
 

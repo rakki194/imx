@@ -59,7 +59,7 @@ const TOP_PADDING: u32 = 40;
 /// The struct automatically selects the appropriate font for each character
 /// based on glyph availability.
 #[derive(Clone, Copy)]
-struct FontPair<'a> {
+pub(crate) struct FontPair<'a> {
     /// Main font for regular text (`DejaVu` Sans)
     main: &'a FontRef<'a>,
     /// Emoji font for emoji characters (Noto Color Emoji)
@@ -332,7 +332,9 @@ fn find_max_dimensions(images: &[PathBuf]) -> Result<(u32, u32)> {
     Ok((max_width, max_height))
 }
 
-fn calculate_label_width(label: &str, fonts: FontPair, scale: f32) -> f32 {
+/// Calculate the width of a label string using the given fonts and scale.
+/// This is used internally for both row and column label width calculations.
+pub(crate) fn calculate_label_width(label: &str, fonts: FontPair, scale: f32) -> f32 {
     let mut width = 0.0;
     for c in label.chars() {
         let (id, font) = fonts.glyph_id(c);
