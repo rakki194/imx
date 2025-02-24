@@ -261,6 +261,9 @@ pub fn f32_to_u32(x: f32) -> u32 {
         0
     } else {
         // For values near u32::MAX, we need to be extra careful
+        // We intentionally allow precision loss here as it's part of our strategy
+        // for handling values near u32::MAX consistently
+        #[allow(clippy::cast_precision_loss)]
         let max_f32 = u32::MAX as f32;
         
         // Round first to handle fractional values consistently
