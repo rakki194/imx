@@ -24,6 +24,12 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Safe numeric type conversions (f32 ↔ i32 ↔ u32 ↔ u8)
   - Unicode text rendering with emoji support
   - Automatic image scaling and alignment
+  - Support for row and column labels
+  - Unicode text support with emoji
+  - Automatic image scaling and alignment
+  - Configurable column label alignment (left, center, right)
+  - Adjustable top padding for label spacing
+  - White background
 
 ## Installation
 
@@ -113,7 +119,7 @@ async fn convert_jxl() -> Result<()> {
 ### Create Image Grid Plots
 
 ```rust
-use imx::{PlotConfig, create_plot};
+use imx::{PlotConfig, create_plot, ColumnLabelAlignment};
 use std::path::PathBuf;
 use anyhow::Result;
 
@@ -129,6 +135,9 @@ fn create_image_grid() -> Result<()> {
         rows: 2,
         row_labels: vec!["Row 1".to_string(), "Row 2".to_string()],
         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center, // or Left, Right
+        top_padding: 40, // Adjust space for labels
+        debug_mode: false,
     };
 
     create_plot(&config)?;
@@ -312,3 +321,15 @@ The layout engine follows these steps:
 - Understand how the grid layout is calculated
 - Verify padding and margins are correct
 - Ensure images are properly centered
+
+### Layout Features
+
+- **Column Label Alignment**: Control how column labels are positioned relative to their images:
+  - `Left`: Align labels with the left edge of the image
+  - `Center`: Center labels over the image (default)
+  - `Right`: Align labels with the right edge of the image
+
+- **Adjustable Top Padding**: Control the vertical space reserved for labels:
+  - Default is 40 pixels
+  - Can be increased for larger labels or decreased for compact layouts
+  - Automatically applied only when labels are present

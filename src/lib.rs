@@ -19,7 +19,7 @@
 //!
 //! ```rust,no_run
 //! use std::path::PathBuf;
-//! use imx::{process_image, PlotConfig, create_plot};
+//! use imx::{process_image, PlotConfig, create_plot, ColumnLabelAlignment};
 //! use anyhow::Result;
 //!
 //! async fn example() -> Result<()> {
@@ -37,7 +37,9 @@
 //!         rows: 1,
 //!         row_labels: vec![],
 //!         column_labels: vec![],
+//!         column_label_alignment: ColumnLabelAlignment::Center,
 //!         debug_mode: false,
+//!         top_padding: 40,
 //!     };
 //!     create_plot(&config)?;
 //!     
@@ -111,7 +113,7 @@ pub mod numeric;
 ///
 /// ```rust,no_run
 /// use std::path::PathBuf;
-/// use imx::{PlotConfig, create_plot};
+/// use imx::{PlotConfig, create_plot, ColumnLabelAlignment};
 /// use anyhow::Result;
 ///
 /// fn example() -> Result<()> {
@@ -121,7 +123,35 @@ pub mod numeric;
 ///         rows: 1,
 ///         row_labels: vec![],
 ///         column_labels: vec![],
+///         column_label_alignment: ColumnLabelAlignment::Center,
 ///         debug_mode: false,
+///         top_padding: 40,
+///     };
+///     create_plot(&config)?;
+///     Ok(())
+/// }
+/// ```
+///
+/// You can also use it with multiple images:
+///
+/// ```rust,no_run
+/// use std::path::PathBuf;
+/// use imx::{PlotConfig, create_plot, ColumnLabelAlignment};
+/// use anyhow::Result;
+///
+/// fn example() -> Result<()> {
+///     let config = PlotConfig {
+///         images: vec![
+///             PathBuf::from("image1.png"),
+///             PathBuf::from("image2.png"),
+///         ],
+///         output: PathBuf::from("output.png"),
+///         rows: 1,
+///         row_labels: vec!["Row 1".to_string()],
+///         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+///         column_label_alignment: ColumnLabelAlignment::Center,
+///         debug_mode: false,
+///         top_padding: 40,
 ///     };
 ///     create_plot(&config)?;
 ///     Ok(())
@@ -139,7 +169,7 @@ pub use image_processing::{
 };
 pub use jxl::{convert_jxl_to_png, is_jxl_file, process_jxl_file};
 pub use layout::{Layout, LayoutElement, LayoutRect};
-pub use xyplot::{create_plot, PlotConfig};
+pub use xyplot::{create_plot, PlotConfig, ColumnLabelAlignment};
 
 #[cfg(test)]
 mod tests {

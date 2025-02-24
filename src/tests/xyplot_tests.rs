@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use super::super::xyplot::{PlotConfig, create_plot};
+use super::super::xyplot::{PlotConfig, create_plot, ColumnLabelAlignment, DEFAULT_TOP_PADDING};
+use crate::numeric::i32_to_u32;
 use anyhow::Result;
 use image::{GenericImageView, Rgb, RgbImage};
 use tempfile::tempdir;
@@ -31,7 +32,9 @@ fn test_basic_plot() -> Result<()> {
         rows: 1,
         row_labels: vec![],
         column_labels: vec![],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -55,7 +58,9 @@ fn test_with_labels() -> Result<()> {
         rows: 1,
         row_labels: vec!["Row 1".to_string()],
         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -79,7 +84,9 @@ fn test_with_row_and_column_labels() -> Result<()> {
         rows: 2,
         row_labels: vec!["Row 1".to_string(), "Row 2".to_string()],
         column_labels: vec!["Col 1".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -103,7 +110,9 @@ fn test_different_image_sizes() -> Result<()> {
         rows: 2,
         row_labels: vec![],
         column_labels: vec![],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -125,7 +134,9 @@ fn test_single_image() -> Result<()> {
         rows: 1,
         row_labels: vec![],
         column_labels: vec![],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -160,7 +171,9 @@ fn test_many_images() -> Result<()> {
             "Center".to_string(),
             "Right".to_string(),
         ],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -183,7 +196,9 @@ fn test_mismatched_row_labels() {
         rows: 1,
         row_labels: vec!["Row 1".to_string(), "Row 2".to_string()],
         column_labels: vec![],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config).unwrap();
@@ -204,7 +219,9 @@ fn test_mismatched_column_labels() {
         rows: 1,
         row_labels: vec![],
         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config).unwrap();
@@ -226,7 +243,9 @@ fn test_empty_labels() -> Result<()> {
         rows: 1,
         row_labels: vec![],
         column_labels: vec![],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -251,7 +270,9 @@ fn test_dynamic_padding() -> Result<()> {
             "This is a very long row label that should cause more padding".to_string(),
         ],
         column_labels: vec!["Col 1".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -283,7 +304,9 @@ fn test_different_size_images() -> Result<()> {
         rows: 1,
         row_labels: vec!["Row 1".to_string()],
         column_labels: vec!["Small".to_string(), "Wide".to_string(), "Tall".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -316,7 +339,9 @@ fn test_label_alignment() -> Result<()> {
         rows: 1,
         row_labels: vec!["Test Row".to_string()],
         column_labels: vec!["First".to_string(), "Second".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -344,7 +369,9 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
         rows: 1,
         row_labels: vec!["Test Row".to_string()],
         column_labels: vec!["Tall".to_string(), "Wide".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: false,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -455,6 +482,118 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn test_column_label_alignments() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let img2_path = temp_dir.path().join("test2.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+    create_test_image(&img2_path, 100, 100)?;
+
+    // Test left alignment
+    let config = PlotConfig {
+        images: vec![img1_path.clone(), img2_path.clone()],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec![],
+        column_labels: vec!["First".to_string(), "Second".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Left,
+        debug_mode: true, // Enable debug mode to help visualize
+        top_padding: DEFAULT_TOP_PADDING,
+    };
+    create_plot(&config)?;
+
+    // Load the output image for verification
+    let output_img = image::open(&output_path)?.to_rgb8();
+
+    // Helper function to check if a region contains black text
+    let has_black_pixels = |x: u32, y: u32, width: u32, height: u32| -> bool {
+        for cy in y..y.saturating_add(height) {
+            for cx in x..x.saturating_add(width) {
+                if cx < output_img.width() && cy < output_img.height() {
+                    let pixel = output_img.get_pixel(cx, cy);
+                    // Check if pixel is dark (text)
+                    if pixel[0] < 128 && pixel[1] < 128 && pixel[2] < 128 {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    };
+
+    let cell_width = 100;
+    let left_padding = 0; // No row labels, so no left padding
+
+    // First column - left aligned
+    assert!(has_black_pixels(
+        i32_to_u32(left_padding),
+        0,
+        50,
+        DEFAULT_TOP_PADDING
+    ));
+
+    // Second column - left aligned
+    assert!(has_black_pixels(
+        i32_to_u32(left_padding) + cell_width,
+        0,
+        50,
+        DEFAULT_TOP_PADDING
+    ));
+
+    // Test right alignment
+    let config = PlotConfig {
+        images: vec![img1_path.clone(), img2_path.clone()],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec![],
+        column_labels: vec!["First".to_string(), "Second".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Right,
+        debug_mode: true, // Enable debug mode to help visualize
+        top_padding: DEFAULT_TOP_PADDING,
+    };
+    create_plot(&config)?;
+
+    let output_img = image::open(&output_path)?.to_rgb8();
+
+    // Calculate expected positions for right-aligned text
+    let first_col_x = i32_to_u32(left_padding) + cell_width - 50;
+    let second_col_x = i32_to_u32(left_padding) + (2 * cell_width) - 50;
+
+    // Debug print dimensions and search areas
+    eprintln!("Image dimensions: {}x{}", output_img.width(), output_img.height());
+    eprintln!("Searching for first column text at x={}, width=50", first_col_x);
+    eprintln!("Searching for second column text at x={}, width=50", second_col_x);
+
+    // Search in a wider area for the first column
+    let mut found_first = false;
+    for x_offset in -20..=20 {
+        let search_x = first_col_x.saturating_add(x_offset as u32);
+        if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
+            found_first = true;
+            eprintln!("Found first column text at x_offset={}", x_offset);
+            break;
+        }
+    }
+    assert!(found_first, "First column right-aligned text not found");
+
+    // Search in a wider area for the second column
+    let mut found_second = false;
+    for x_offset in -20..=20 {
+        let search_x = second_col_x.saturating_add(x_offset as u32);
+        if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
+            found_second = true;
+            eprintln!("Found second column text at x_offset={}", x_offset);
+            break;
+        }
+    }
+    assert!(found_second, "Second column right-aligned text not found");
+
+    Ok(())
+}
+
 // Add a new test for debug mode
 #[test]
 fn test_debug_mode() -> Result<()> {
@@ -472,7 +611,9 @@ fn test_debug_mode() -> Result<()> {
         rows: 1,
         row_labels: vec!["Test Row".to_string()],
         column_labels: vec!["First".to_string(), "Second".to_string()],
+        column_label_alignment: ColumnLabelAlignment::Center,
         debug_mode: true,
+        top_padding: DEFAULT_TOP_PADDING,
     };
 
     create_plot(&config)?;
@@ -485,6 +626,177 @@ fn test_debug_mode() -> Result<()> {
         output_path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default()
     ));
     assert!(debug_output.exists());
+
+    Ok(())
+}
+
+#[test]
+fn test_column_label_alignments_comprehensive() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+
+    // Test all alignment options
+    for alignment in [ColumnLabelAlignment::Left, ColumnLabelAlignment::Center, ColumnLabelAlignment::Right] {
+        let config = PlotConfig {
+            images: vec![img1_path.clone()],
+            output: output_path.clone(),
+            rows: 1,
+            row_labels: vec![],
+            column_labels: vec!["Test Label".to_string()],
+            column_label_alignment: alignment,
+            debug_mode: true,
+            top_padding: DEFAULT_TOP_PADDING,
+        };
+
+        create_plot(&config)?;
+
+        // Load the output image for verification
+        let output_img = image::open(&output_path)?.to_rgb8();
+
+        // Helper function to check if a region contains black text
+        let has_black_pixels = |x: u32, y: u32, width: u32, height: u32| -> bool {
+            for cy in y..y.saturating_add(height) {
+                for cx in x..x.saturating_add(width) {
+                    if cx < output_img.width() && cy < output_img.height() {
+                        let pixel = output_img.get_pixel(cx, cy);
+                        if pixel[0] < 128 && pixel[1] < 128 && pixel[2] < 128 {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        };
+
+        // Expected positions based on alignment
+        let (expected_x, search_width): (i32, u32) = match alignment {
+            ColumnLabelAlignment::Left => (0, 50),
+            ColumnLabelAlignment::Center => (25, 50), // Centered in 100px width
+            ColumnLabelAlignment::Right => (50, 50),
+        };
+
+        // Search for text with some tolerance
+        let mut found_text = false;
+        for x_offset in -10..=10 {
+            let search_x = i32_to_u32((expected_x + x_offset).max(0));
+            if has_black_pixels(search_x, 0, search_width, DEFAULT_TOP_PADDING) {
+                found_text = true;
+                break;
+            }
+        }
+
+        assert!(
+            found_text,
+            "Text not found at expected position for {:?} alignment",
+            alignment
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_top_padding_variations() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+
+    // Test different padding values
+    for &padding in &[20, 40, 60, 80] {
+        let config = PlotConfig {
+            images: vec![img1_path.clone()],
+            output: output_path.clone(),
+            rows: 1,
+            row_labels: vec![],
+            column_labels: vec!["Test Label".to_string()],
+            column_label_alignment: ColumnLabelAlignment::Center,
+            debug_mode: true,
+            top_padding: padding,
+        };
+
+        create_plot(&config)?;
+
+        // Load and verify the output image
+        let output_img = image::open(&output_path)?;
+        let (_, height) = output_img.dimensions();
+
+        // Image height should be at least padding + image height (100)
+        assert!(
+            height >= padding + 100,
+            "Output height {} is less than expected {} for padding {}",
+            height,
+            padding + 100,
+            padding
+        );
+
+        // Verify label placement
+        let output_img = output_img.to_rgb8();
+        let has_black_pixels = |y: u32, height: u32| -> bool {
+            for cy in y..y.saturating_add(height) {
+                for cx in 0..output_img.width() {
+                    let pixel = output_img.get_pixel(cx, cy);
+                    if pixel[0] < 128 && pixel[1] < 128 && pixel[2] < 128 {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+
+        // Check that text appears in the top padding area
+        assert!(
+            has_black_pixels(0, padding),
+            "No text found in top padding area (height {})",
+            padding
+        );
+
+        // Check that no text appears below the padding area
+        assert!(
+            !has_black_pixels(padding, 10),
+            "Unexpected text found below padding area (height {})",
+            padding
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_zero_top_padding() -> Result<()> {
+    let temp_dir = tempdir()?;
+    let img1_path = temp_dir.path().join("test1.png");
+    let output_path = temp_dir.path().join("output.png");
+
+    create_test_image(&img1_path, 100, 100)?;
+
+    let config = PlotConfig {
+        images: vec![img1_path],
+        output: output_path.clone(),
+        rows: 1,
+        row_labels: vec![],
+        column_labels: vec![], // No labels since we have no padding
+        column_label_alignment: ColumnLabelAlignment::Center,
+        debug_mode: true,
+        top_padding: 0,
+    };
+
+    create_plot(&config)?;
+
+    // Load and verify the output image
+    let output_img = image::open(&output_path)?;
+    let (_, height) = output_img.dimensions();
+
+    // With no padding and no labels, height should be exactly image height
+    assert_eq!(
+        height, 100,
+        "Output height {} should match input image height 100 with zero padding",
+        height
+    );
 
     Ok(())
 }

@@ -17,7 +17,7 @@
 //! ```rust,no_run
 //! use std::path::PathBuf;
 //! use anyhow::Result;
-//! use imx::xyplot::{PlotConfig, create_plot};
+//! use imx::xyplot::{PlotConfig, create_plot, ColumnLabelAlignment};
 //!
 //! async fn example() -> Result<()> {
 //!     let config = PlotConfig {
@@ -29,7 +29,9 @@
 //!         rows: 1,
 //!         row_labels: vec!["Row 1".to_string()],
 //!         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+//!         column_label_alignment: ColumnLabelAlignment::Center,
 //!         debug_mode: false,
+//!         top_padding: 40,
 //!     };
 //!
 //!     create_plot(&config)?;
@@ -48,9 +50,8 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use crate::layout::{Layout, LayoutElement, LayoutRect};
 
-// Constants for layout
 /// Space reserved at the top of the plot for labels and padding
-const TOP_PADDING: u32 = 40;
+pub const DEFAULT_TOP_PADDING: u32 = 40;
 
 /// A pair of fonts for rendering text and emoji characters.
 ///
@@ -207,6 +208,23 @@ fn draw_text(
     }
 }
 
+/// Alignment options for column labels
+#[derive(Debug, Clone, Copy)]
+pub enum ColumnLabelAlignment {
+    /// Place labels at the left edge of the image
+    Left,
+    /// Center labels over the image (default)
+    Center,
+    /// Place labels at the right edge of the image
+    Right,
+}
+
+impl Default for ColumnLabelAlignment {
+    fn default() -> Self {
+        Self::Center
+    }
+}
+
 /// Configuration for creating an image plot with labels.
 ///
 /// This struct defines the layout and content of an image grid plot,
@@ -216,7 +234,7 @@ fn draw_text(
 ///
 /// ```rust,no_run
 /// use std::path::PathBuf;
-/// use imx::xyplot::PlotConfig;
+/// use imx::xyplot::{PlotConfig, ColumnLabelAlignment};
 ///
 /// let config = PlotConfig {
 ///     images: vec![PathBuf::from("image1.png")],
@@ -224,7 +242,9 @@ fn draw_text(
 ///     rows: 1,
 ///     row_labels: vec!["Row 1".to_string()],
 ///     column_labels: vec!["Col 1".to_string()],
+///     column_label_alignment: ColumnLabelAlignment::Center,
 ///     debug_mode: false,
+///     top_padding: 40,
 /// };
 /// ```
 #[derive(Debug)]
@@ -239,8 +259,27 @@ pub struct PlotConfig {
     pub row_labels: Vec<String>,
     /// Optional labels for each column (empty Vec for no labels)
     pub column_labels: Vec<String>,
+    /// Alignment of column labels relative to their images
+    pub column_label_alignment: ColumnLabelAlignment,
     /// Whether to output a debug visualization of the layout
     pub debug_mode: bool,
+    /// Space reserved at the top of the plot for labels and padding
+    pub top_padding: u32,
+}
+
+impl Default for PlotConfig {
+    fn default() -> Self {
+        Self {
+            images: Vec::new(),
+            output: PathBuf::from("output.jpg"),
+            rows: 1,
+            row_labels: Vec::new(),
+            column_labels: Vec::new(),
+            column_label_alignment: ColumnLabelAlignment::default(),
+            debug_mode: false,
+            top_padding: DEFAULT_TOP_PADDING,
+        }
+    }
 }
 
 fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
@@ -357,8 +396,8 @@ fn calculate_layout(
     cols: u32,
 ) -> Layout {
     let has_labels = !config.row_labels.is_empty() || !config.column_labels.is_empty();
-    let row_height = max_height + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_height = row_height * config.rows + if has_labels { TOP_PADDING } else { 0 };
+    let row_height = max_height + if has_labels { config.top_padding } else { 0 };
+    let canvas_height = row_height * config.rows + if has_labels { config.top_padding } else { 0 };
     let canvas_width = max_width * cols + i32_to_u32(left_padding);
     let fonts = load_fonts();
 
@@ -383,7 +422,7 @@ fn calculate_layout(
                 x: left_padding,
                 y: 0,
                 width: canvas_width - i32_to_u32(left_padding),
-                height: TOP_PADDING,
+                height: config.top_padding,
             },
             description: "Top padding for column labels".to_string(),
         });
@@ -401,15 +440,22 @@ fn calculate_layout(
             let label_width = calculate_label_width(label, fonts, 24.0);
             let img_width_i32 = u32_to_i32(img_width);
             let label_width_i32 = f32_to_i32(label_width);
-            let label_x = u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
-                (img_width_i32 - label_width_i32) / 2;
+            
+            // Calculate label x position based on alignment
+            let label_x = match config.column_label_alignment {
+                ColumnLabelAlignment::Left => u32_to_i32(cell_start) + u32_to_i32(x_offset),
+                ColumnLabelAlignment::Center => u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
+                    (img_width_i32 - label_width_i32) / 2,
+                ColumnLabelAlignment::Right => u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
+                    img_width_i32 - label_width_i32,
+            };
             
             layout.add_element(LayoutElement::ColumnLabel {
                 rect: LayoutRect {
                     x: label_x,
-                    y: u32_to_i32(TOP_PADDING / 2),
+                    y: u32_to_i32(config.top_padding / 2),
                     width: i32_to_u32(label_width_i32),
-                    height: TOP_PADDING / 2,
+                    height: config.top_padding / 2,
                 },
                 text: label.clone(),
             });
@@ -423,7 +469,7 @@ fn calculate_layout(
         let col = i % cols;
 
         let x_start = col * max_width + i32_to_u32(left_padding);
-        let y_start = row * row_height + TOP_PADDING;
+        let y_start = row * row_height + config.top_padding;
 
         if let Some(row_label) = config.row_labels.get(row as usize) {
             // Calculate actual label width
