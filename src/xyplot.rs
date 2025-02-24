@@ -285,9 +285,8 @@ fn load_fonts() -> FontPair<'static> {
     static EMOJI_FONT: OnceLock<FontRef<'static>> = OnceLock::new();
 
     // Initialize fonts if not already initialized
-    let main_font = MAIN_FONT.get_or_init(|| {
-        FontRef::try_from_slice(MAIN_FONT_DATA).expect("Failed to load main font")
-    });
+    let main_font = MAIN_FONT
+        .get_or_init(|| FontRef::try_from_slice(MAIN_FONT_DATA).expect("Failed to load main font"));
     let emoji_font = EMOJI_FONT.get_or_init(|| {
         FontRef::try_from_slice(EMOJI_FONT_DATA).expect("Failed to load emoji font")
     });
@@ -349,28 +348,41 @@ fn draw_column_labels(
     max_width: u32,
     left_padding: i32,
     fonts: FontPair,
-) {
+    images: &[PathBuf],
+) -> Result<()> {
     // Font scale for column labels
     let font_scale = 24.0;
-    
+
     // Calculate the maximum label width to ensure consistent padding
     let max_label_width = column_labels
         .iter()
         .map(|label| calculate_label_width(label, fonts, font_scale))
         .fold(0.0, f32::max);
-    
+
     // Calculate padding to ensure labels don't overlap with images
     // Use 10% of the maximum width or the label width, whichever is smaller
     let padding = f32::min((max_width as f32) * 0.1, max_label_width * 0.25);
-    
-    for (col, label) in column_labels.iter().enumerate() {
-        // Calculate the actual x position where the image starts
-        let x_start = u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
-        // Add calculated padding
-        let x = x_start + f32_to_i32(padding);
+
+    for (col, (label, img_path)) in column_labels.iter().zip(images.iter()).enumerate() {
+        // Get the actual image width to calculate offset
+        let img = image::open(img_path)
+            .with_context(|| format!("Failed to open image: {img_path:?}"))?
+            .to_rgb8();
+        let img_width = img.width();
+
+        // Calculate the grid cell start position
+        let cell_start =
+            u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
+
+        // Calculate the image offset within its grid cell
+        let x_offset = u32_to_i32((max_width - img_width) / 2);
+
+        // Position label at the start of the actual image
+        let x = cell_start + x_offset + f32_to_i32(padding);
         let y = u32_to_i32(TOP_PADDING / 2);
         draw_text(canvas, label, x, y, font_scale, fonts, Rgb([0, 0, 0]));
     }
+    Ok(())
 }
 
 fn place_image(
@@ -467,7 +479,14 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
     }
 
     if !config.column_labels.is_empty() {
-        draw_column_labels(&mut canvas, &config.column_labels, max_width, left_padding, fonts);
+        draw_column_labels(
+            &mut canvas,
+            &config.column_labels,
+            max_width,
+            left_padding,
+            fonts,
+            &config.images,
+        )?;
     }
 
     for (i, img_path) in config.images.iter().enumerate() {
@@ -484,7 +503,14 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
             draw_text(&mut canvas, row_label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
         }
 
-        place_image(&mut canvas, img_path, x_start, y_start, max_width, max_height)?;
+        place_image(
+            &mut canvas,
+            img_path,
+            x_start,
+            y_start,
+            max_width,
+            max_height,
+        )?;
     }
 
     canvas

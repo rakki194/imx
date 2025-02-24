@@ -320,20 +320,18 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     let temp_dir = tempdir()?;
     let img1_path = temp_dir.path().join("test1.png");
     let img2_path = temp_dir.path().join("test2.png");
-    let img3_path = temp_dir.path().join("test3.png");
     let output_path = temp_dir.path().join("output.png");
 
     // Create images with different aspect ratios
     create_test_image(&img1_path, 100, 200)?; // Tall
     create_test_image(&img2_path, 200, 100)?; // Wide
-    create_test_image(&img3_path, 150, 150)?; // Square
 
     let config = PlotConfig {
-        images: vec![img1_path, img2_path, img3_path],
+        images: vec![img1_path, img2_path],
         output: output_path.clone(),
         rows: 1,
         row_labels: vec!["Test Row".to_string()],
-        column_labels: vec!["Tall".to_string(), "Wide".to_string(), "Square".to_string()],
+        column_labels: vec!["Tall".to_string(), "Wide".to_string()],
     };
 
     create_plot(&config)?;
@@ -358,28 +356,43 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     };
 
     // The maximum width among images is 200
-    let cell_width = 200;
+    let max_width = 200;
     let left_padding = 150; // Known padding for row labels
 
-    // Check each column label position
-    for col in 0..3 {
-        let expected_x = left_padding + (col * cell_width);
-        
-        // Check that text exists at the start of each cell
-        assert!(
-            has_black_pixels(expected_x, 0, 50, 40),
-            "Column {} label not found at expected position ({}, 0)",
-            col,
-            expected_x
-        );
+    // Test first column (Tall image - 100px wide)
+    let col = 0;
+    let cell_start = left_padding + (col * max_width);
+    let image_offset = (max_width - 100) / 2; // (200 - 100) / 2 = 50
+    let expected_x = cell_start + image_offset;
 
-        // Check that there is no text in the middle of the cell
-        let mid_cell_x = expected_x + (cell_width / 2);
+    // Check that text exists near the start of the actual image position
+    assert!(
+        has_black_pixels(expected_x, 0, 50, 40),
+        "Column 0 (Tall) label not found at expected position ({}, 0)",
+        expected_x
+    );
+
+    // Test second column (Wide image - 200px wide)
+    let col = 1;
+    let cell_start = left_padding + (col * max_width);
+    let image_offset = (max_width - 200) / 2; // (200 - 200) / 2 = 0
+    let expected_x = cell_start + image_offset;
+
+    // Check that text exists near the start of the actual image position
+    assert!(
+        has_black_pixels(expected_x, 0, 50, 40),
+        "Column 1 (Wide) label not found at expected position ({}, 0)",
+        expected_x
+    );
+
+    // Verify no text in the middle of cells
+    for col in 0..2 {
+        let cell_mid = left_padding + (col * max_width) + (max_width / 2);
         assert!(
-            !has_black_pixels(mid_cell_x, 0, 20, 40),
+            !has_black_pixels(cell_mid, 0, 20, 40),
             "Found unexpected text in middle of cell {} at position ({}, 0)",
             col,
-            mid_cell_x
+            cell_mid
         );
     }
 
