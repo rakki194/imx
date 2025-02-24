@@ -232,3 +232,83 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License.
+
+## Layout Engine and Debugging
+
+The library includes a powerful layout engine for debugging and visualizing image grid layouts. This is particularly useful when developing applications that use the grid plotting functionality.
+
+### Layout System Components
+
+The layout system consists of several key components:
+
+- `LayoutRect` - Represents a rectangular region with position (x, y) and dimensions (width, height)
+- `LayoutElement` - Represents different types of elements in the layout:
+  - `Image` - An image element with its position and source path
+  - `RowLabel` - A row label with its position and text
+  - `ColumnLabel` - A column label with its position and text
+  - `Padding` - A padding region with its position and description
+
+### Debug Visualization
+
+The layout engine can generate debug visualizations that show:
+
+- Images (Light Blue) - Shows where each image is positioned
+- Row Labels (Light Red) - Shows row label positioning and dimensions
+- Column Labels (Light Green) - Shows column label positioning and dimensions
+- Padding Areas (Light Gray) - Shows padding regions for spacing and alignment
+
+Each element is outlined with a dark border for clear separation.
+
+### Using the Layout Engine
+
+```rust
+use imx::{PlotConfig, create_plot};
+use std::path::PathBuf;
+
+fn main() -> anyhow::Result<()> {
+    let config = PlotConfig {
+        images: vec![
+            PathBuf::from("image1.jpg"),
+            PathBuf::from("image2.jpg"),
+        ],
+        output: PathBuf::from("output.jpg"),
+        rows: 1,
+        row_labels: vec!["Row 1".to_string()],
+        column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+        debug_mode: true, // Enable debug visualization
+    };
+
+    create_plot(&config)?;
+    // This will create:
+    // - output.jpg (the actual plot)
+    // - output_debug.jpg (the layout visualization)
+    Ok(())
+}
+```
+
+### Layout Algorithm
+
+The layout engine follows these steps:
+
+1. **Canvas Setup**
+   - Calculates total dimensions based on images and labels
+   - Creates padding areas for labels if needed
+
+2. **Element Placement**
+   - Places column labels at the top with proper alignment
+   - Positions row labels on the left side
+   - Centers images within their grid cells
+   - Adds padding between elements for spacing
+
+3. **Debug Rendering**
+   - Creates a color-coded visualization
+   - Shows exact positions and dimensions of all elements
+   - Highlights padding and alignment areas
+
+### Benefits of Layout Debugging
+
+- Visualize spacing and alignment issues
+- Debug label positioning problems
+- Understand how the grid layout is calculated
+- Verify padding and margins are correct
+- Ensure images are properly centered

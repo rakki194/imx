@@ -29,6 +29,7 @@
 //!         rows: 1,
 //!         row_labels: vec!["Row 1".to_string()],
 //!         column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
+//!         debug_mode: false,
 //!     };
 //!
 //!     create_plot(&config)?;
@@ -38,13 +39,14 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32, u32_to_i32};
+use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32};
 use ab_glyph::{Font, FontRef, GlyphId, Point, PxScale, ScaleFont};
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use rgb::FromSlice;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use crate::layout::{Layout, LayoutElement, LayoutRect};
 
 // Constants for layout
 /// Space reserved at the top of the plot for labels and padding
@@ -222,6 +224,7 @@ fn draw_text(
 ///     rows: 1,
 ///     row_labels: vec!["Row 1".to_string()],
 ///     column_labels: vec!["Col 1".to_string()],
+///     debug_mode: false,
 /// };
 /// ```
 #[derive(Debug)]
@@ -236,6 +239,8 @@ pub struct PlotConfig {
     pub row_labels: Vec<String>,
     /// Optional labels for each column (empty Vec for no labels)
     pub column_labels: Vec<String>,
+    /// Whether to output a debug visualization of the layout
+    pub debug_mode: bool,
 }
 
 fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
@@ -344,76 +349,113 @@ pub(crate) fn calculate_label_width(label: &str, fonts: FontPair, scale: f32) ->
     width
 }
 
-fn draw_column_labels(
-    canvas: &mut RgbImage,
-    column_labels: &[String],
-    max_width: u32,
-    left_padding: i32,
-    fonts: FontPair,
-    images: &[PathBuf],
-) -> Result<()> {
-    // Font scale for column labels
-    let font_scale = 24.0;
-
-    // Calculate the maximum label width to ensure consistent padding
-    let max_label_width = column_labels
-        .iter()
-        .map(|label| calculate_label_width(label, fonts, font_scale))
-        .fold(0.0, f32::max);
-
-    // Calculate padding to ensure labels don't overlap with images
-    // Use 10% of the maximum width or the label width, whichever is smaller
-    let padding = f32::min(
-        i32_to_f32_for_pos(u32_to_i32(max_width)) * 0.1,
-        max_label_width * 0.25
-    );
-
-    for (col, (label, img_path)) in column_labels.iter().zip(images.iter()).enumerate() {
-        // Get the actual image width to calculate offset
-        let img = image::open(img_path)
-            .with_context(|| format!("Failed to open image: {img_path:?}"))?
-            .to_rgb8();
-        let img_width = img.width();
-
-        // Calculate the grid cell start position
-        let cell_start =
-            u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
-
-        // Calculate the image offset within its grid cell
-        let x_offset = u32_to_i32((max_width - img_width) / 2);
-
-        // Position label at the start of the actual image
-        let x = cell_start + x_offset + f32_to_i32(padding);
-        let y = u32_to_i32(TOP_PADDING / 2);
-        draw_text(canvas, label, x, y, font_scale, fonts, Rgb([0, 0, 0]));
-    }
-    Ok(())
-}
-
-fn place_image(
-    canvas: &mut RgbImage,
-    img_path: &Path,
-    x_start: u32,
-    y_start: u32,
+fn calculate_layout(
+    config: &PlotConfig,
     max_width: u32,
     max_height: u32,
-) -> Result<()> {
-    let img = image::open(img_path)
-        .with_context(|| format!("Failed to open image: {img_path:?}"))?
-        .to_rgb8();
-    let (img_width, img_height) = img.dimensions();
+    left_padding: i32,
+    cols: u32,
+) -> Layout {
+    let has_labels = !config.row_labels.is_empty() || !config.column_labels.is_empty();
+    let row_height = max_height + if has_labels { TOP_PADDING } else { 0 };
+    let canvas_height = row_height * config.rows + if has_labels { TOP_PADDING } else { 0 };
+    let canvas_width = max_width * cols + i32_to_u32(left_padding);
+    let fonts = load_fonts();
 
-    let x_offset = (max_width - img_width) / 2;
-    let y_offset = (max_height - img_height) / 2;
+    let mut layout = Layout::new(canvas_width, canvas_height);
 
-    for (x, y, pixel) in img.enumerate_pixels() {
-        let canvas_x = x_start + x_offset + x;
-        let canvas_y = y_start + y_offset + y;
-        if canvas_x < canvas.width() && canvas_y < canvas.height() {
-            canvas.put_pixel(canvas_x, canvas_y, *pixel);
+    // Add padding elements
+    if left_padding > 0 {
+        layout.add_element(LayoutElement::Padding {
+            rect: LayoutRect {
+                x: 0,
+                y: 0,
+                width: i32_to_u32(left_padding),
+                height: canvas_height,
+            },
+            description: "Left padding for row labels".to_string(),
+        });
+    }
+
+    if has_labels {
+        layout.add_element(LayoutElement::Padding {
+            rect: LayoutRect {
+                x: left_padding,
+                y: 0,
+                width: canvas_width - i32_to_u32(left_padding),
+                height: TOP_PADDING,
+            },
+            description: "Top padding for column labels".to_string(),
+        });
+    }
+
+    // Add column labels
+    if !config.column_labels.is_empty() {
+        for (col, (label, img_path)) in config.column_labels.iter().zip(config.images.iter()).enumerate() {
+            let img = image::open(img_path).unwrap().to_rgb8();
+            let img_width = img.width();
+            let cell_start = u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding);
+            let x_offset = (max_width - img_width) / 2;
+            
+            // Calculate actual label width
+            let label_width = calculate_label_width(label, fonts, 24.0);
+            let label_x = cell_start as i32 + x_offset as i32 + ((img_width as f32 - label_width) / 2.0) as i32;
+            
+            layout.add_element(LayoutElement::ColumnLabel {
+                rect: LayoutRect {
+                    x: label_x,
+                    y: (TOP_PADDING / 2) as i32,
+                    width: f32_to_i32(label_width) as u32,
+                    height: TOP_PADDING / 2,
+                },
+                text: label.clone(),
+            });
         }
     }
-    Ok(())
+
+    // Add row labels and images
+    for (i, img_path) in config.images.iter().enumerate() {
+        let i = u32::try_from(i).unwrap_or(0);
+        let row = i / cols;
+        let col = i % cols;
+
+        let x_start = col * max_width + i32_to_u32(left_padding);
+        let y_start = row * row_height + TOP_PADDING;
+
+        if let Some(row_label) = config.row_labels.get(row as usize) {
+            // Calculate actual label width
+            let label_width = calculate_label_width(row_label, fonts, 24.0);
+            let available_width = i32_to_u32(left_padding) - 40;
+            let label_x = 20 + ((available_width as f32 - label_width) / 2.0) as i32;
+
+            layout.add_element(LayoutElement::RowLabel {
+                rect: LayoutRect {
+                    x: label_x,
+                    y: y_start as i32 + (max_height / 2) as i32,
+                    width: f32_to_i32(label_width) as u32,
+                    height: 30,
+                },
+                text: row_label.clone(),
+            });
+        }
+
+        let img = image::open(img_path).unwrap().to_rgb8();
+        let (img_width, img_height) = img.dimensions();
+        let x_offset = (max_width - img_width) / 2;
+        let y_offset = (max_height - img_height) / 2;
+
+        layout.add_element(LayoutElement::Image {
+            rect: LayoutRect {
+                x: (x_start + x_offset) as i32,
+                y: (y_start + y_offset) as i32,
+                width: img_width,
+                height: img_height,
+            },
+            path: img_path.to_string_lossy().into_owned(),
+        });
+    }
+
+    layout
 }
 
 /// Creates a plot of images arranged in a grid with optional labels.
@@ -429,6 +471,7 @@ fn place_image(
 /// - White background
 /// - Unicode text support with emoji
 /// - Automatic image spacing and alignment
+/// - Optional debug mode for visualizing layout
 ///
 /// # Arguments
 ///
@@ -437,89 +480,70 @@ fn place_image(
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
-///
-/// # Errors
-///
-/// Returns an error if:
-/// * The number of row labels doesn't match the number of rows
-/// * The number of column labels doesn't match the calculated number of columns
-/// * Any input image file cannot be opened or is invalid
-/// * The fonts cannot be loaded
-/// * The output file cannot be written
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use std::path::PathBuf;
-/// use anyhow::Result;
-/// use imx::xyplot::{PlotConfig, create_plot};
-///
-/// fn example() -> Result<()> {
-///     let config = PlotConfig {
-///         images: vec![PathBuf::from("image1.png")],
-///         output: PathBuf::from("output.png"),
-///         rows: 1,
-///         row_labels: vec!["Row 1".to_string()],
-///         column_labels: vec!["Col 1".to_string()],
-///     };
-///
-///     create_plot(&config)?;
-///     Ok(())
-/// }
-/// ```
 pub fn create_plot(config: &PlotConfig) -> Result<()> {
     let cols = validate_plot_config(config)?;
     let fonts = load_fonts();
     let left_padding = calculate_left_padding(&config.row_labels, fonts);
     let (max_width, max_height) = find_max_dimensions(&config.images)?;
 
-    let has_labels = !config.row_labels.is_empty() || !config.column_labels.is_empty();
-    let row_height = max_height + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_height = row_height * config.rows + if has_labels { TOP_PADDING } else { 0 };
-    let canvas_width = max_width * cols + i32_to_u32(left_padding);
+    let layout = calculate_layout(config, max_width, max_height, left_padding, cols);
 
-    let mut canvas = RgbImage::new(canvas_width, canvas_height);
+    if config.debug_mode {
+        // Save debug visualization
+        let debug_output = config.output.with_file_name(format!(
+            "{}_debug{}",
+            config.output.file_stem().unwrap().to_string_lossy(),
+            config.output.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default()
+        ));
+        layout.render_debug().save(&debug_output)
+            .with_context(|| format!("Failed to save debug layout: {:?}", debug_output))?;
+    }
+
+    let mut canvas = RgbImage::new(layout.total_width, layout.total_height);
     for pixel in canvas.pixels_mut() {
         *pixel = Rgb([255, 255, 255]);
     }
 
-    if !config.column_labels.is_empty() {
-        draw_column_labels(
-            &mut canvas,
-            &config.column_labels,
-            max_width,
-            left_padding,
-            fonts,
-            &config.images,
-        )?;
-    }
-
-    for (i, img_path) in config.images.iter().enumerate() {
-        let i = u32::try_from(i)?;
-        let row = i / cols;
-        let col = i % cols;
-
-        let x_start = col * max_width + i32_to_u32(left_padding);
-        let y_start = row * row_height + TOP_PADDING;
-
-        if let Some(row_label) = config.row_labels.get(row as usize) {
-            let x = 20;
-            let y = u32_to_i32(y_start + max_height / 2);
-            draw_text(&mut canvas, row_label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
+    // Draw the actual plot using the layout information
+    for element in layout.elements {
+        match element {
+            LayoutElement::Image { rect, path } => {
+                let img = image::open(Path::new(&path))?.to_rgb8();
+                for (x, y, pixel) in img.enumerate_pixels() {
+                    let canvas_x = (rect.x + x as i32) as u32;
+                    let canvas_y = (rect.y + y as i32) as u32;
+                    if canvas_x < canvas.width() && canvas_y < canvas.height() {
+                        canvas.put_pixel(canvas_x, canvas_y, *pixel);
+                    }
+                }
+            }
+            LayoutElement::RowLabel { rect, text } => {
+                draw_text(
+                    &mut canvas,
+                    &text,
+                    rect.x,
+                    rect.y,
+                    24.0,
+                    fonts,
+                    Rgb([0, 0, 0]),
+                );
+            }
+            LayoutElement::ColumnLabel { rect, text } => {
+                draw_text(
+                    &mut canvas,
+                    &text,
+                    rect.x,
+                    rect.y,
+                    24.0,
+                    fonts,
+                    Rgb([0, 0, 0]),
+                );
+            }
+            LayoutElement::Padding { .. } => {}
         }
-
-        place_image(
-            &mut canvas,
-            img_path,
-            x_start,
-            y_start,
-            max_width,
-            max_height,
-        )?;
     }
 
-    canvas
-        .save(&config.output)
+    canvas.save(&config.output)
         .with_context(|| format!("Failed to save output image: {:?}", config.output))?;
 
     Ok(())

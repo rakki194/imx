@@ -37,6 +37,7 @@
 //!         rows: 1,
 //!         row_labels: vec![],
 //!         column_labels: vec![],
+//!         debug_mode: false,
 //!     };
 //!     create_plot(&config)?;
 //!     
@@ -105,7 +106,31 @@ pub mod jxl;
 pub mod numeric;
 
 /// XY plotting module for creating visualizations and graphs.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::PathBuf;
+/// use imx::{PlotConfig, create_plot};
+/// use anyhow::Result;
+///
+/// fn example() -> Result<()> {
+///     let config = PlotConfig {
+///         images: vec![PathBuf::from("image1.png")],
+///         output: PathBuf::from("output.png"),
+///         rows: 1,
+///         row_labels: vec![],
+///         column_labels: vec![],
+///         debug_mode: false,
+///     };
+///     create_plot(&config)?;
+///     Ok(())
+/// }
+/// ```
 pub mod xyplot;
+
+/// Layout module for debugging and visualizing image grid layouts
+pub mod layout;
 
 // Re-export commonly used types and functions
 pub use image_processing::{
@@ -113,6 +138,7 @@ pub use image_processing::{
     remove_letterbox_with_threshold, remove_transparency,
 };
 pub use jxl::{convert_jxl_to_png, is_jxl_file, process_jxl_file};
+pub use layout::{Layout, LayoutElement, LayoutRect};
 pub use xyplot::{create_plot, PlotConfig};
 
 #[cfg(test)]
