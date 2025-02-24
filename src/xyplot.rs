@@ -39,7 +39,7 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32};
+use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32, u32_to_i32};
 use ab_glyph::{Font, FontRef, GlyphId, Point, PxScale, ScaleFont};
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
@@ -399,13 +399,16 @@ fn calculate_layout(
             
             // Calculate actual label width
             let label_width = calculate_label_width(label, fonts, 24.0);
-            let label_x = cell_start as i32 + x_offset as i32 + ((img_width as f32 - label_width) / 2.0) as i32;
+            let img_width_i32 = u32_to_i32(img_width);
+            let label_width_i32 = f32_to_i32(label_width);
+            let label_x = u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
+                (img_width_i32 - label_width_i32) / 2;
             
             layout.add_element(LayoutElement::ColumnLabel {
                 rect: LayoutRect {
                     x: label_x,
-                    y: (TOP_PADDING / 2) as i32,
-                    width: f32_to_i32(label_width) as u32,
+                    y: u32_to_i32(TOP_PADDING / 2),
+                    width: i32_to_u32(label_width_i32),
                     height: TOP_PADDING / 2,
                 },
                 text: label.clone(),
@@ -426,13 +429,15 @@ fn calculate_layout(
             // Calculate actual label width
             let label_width = calculate_label_width(row_label, fonts, 24.0);
             let available_width = i32_to_u32(left_padding) - 40;
-            let label_x = 20 + ((available_width as f32 - label_width) / 2.0) as i32;
+            let available_width_i32 = u32_to_i32(available_width);
+            let label_width_i32 = f32_to_i32(label_width);
+            let label_x = 20 + (available_width_i32 - label_width_i32) / 2;
 
             layout.add_element(LayoutElement::RowLabel {
                 rect: LayoutRect {
                     x: label_x,
-                    y: y_start as i32 + (max_height / 2) as i32,
-                    width: f32_to_i32(label_width) as u32,
+                    y: u32_to_i32(y_start) + u32_to_i32(max_height / 2),
+                    width: i32_to_u32(label_width_i32),
                     height: 30,
                 },
                 text: row_label.clone(),
@@ -446,8 +451,8 @@ fn calculate_layout(
 
         layout.add_element(LayoutElement::Image {
             rect: LayoutRect {
-                x: (x_start + x_offset) as i32,
-                y: (y_start + y_offset) as i32,
+                x: u32_to_i32(x_start + x_offset),
+                y: u32_to_i32(y_start + y_offset),
                 width: img_width,
                 height: img_height,
             },
@@ -480,6 +485,19 @@ fn calculate_layout(
 /// # Returns
 ///
 /// Returns a `Result<()>` indicating success or failure
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The input images cannot be opened or read
+/// - The output file cannot be created or written
+/// - The number of row or column labels doesn't match the grid dimensions
+///
+/// # Panics
+///
+/// This function will panic if:
+/// - The output path has no file stem
+/// - The output path has an invalid extension
 pub fn create_plot(config: &PlotConfig) -> Result<()> {
     let cols = validate_plot_config(config)?;
     let fonts = load_fonts();
@@ -510,25 +528,14 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
             LayoutElement::Image { rect, path } => {
                 let img = image::open(Path::new(&path))?.to_rgb8();
                 for (x, y, pixel) in img.enumerate_pixels() {
-                    let canvas_x = (rect.x + x as i32) as u32;
-                    let canvas_y = (rect.y + y as i32) as u32;
+                    let canvas_x = i32_to_u32(rect.x + u32_to_i32(x));
+                    let canvas_y = i32_to_u32(rect.y + u32_to_i32(y));
                     if canvas_x < canvas.width() && canvas_y < canvas.height() {
                         canvas.put_pixel(canvas_x, canvas_y, *pixel);
                     }
                 }
             }
-            LayoutElement::RowLabel { rect, text } => {
-                draw_text(
-                    &mut canvas,
-                    &text,
-                    rect.x,
-                    rect.y,
-                    24.0,
-                    fonts,
-                    Rgb([0, 0, 0]),
-                );
-            }
-            LayoutElement::ColumnLabel { rect, text } => {
+            LayoutElement::RowLabel { rect, text } | LayoutElement::ColumnLabel { rect, text } => {
                 draw_text(
                     &mut canvas,
                     &text,
