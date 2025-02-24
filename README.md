@@ -27,8 +27,9 @@ A Rust library for image processing and manipulation, providing functionality fo
   - Support for row and column labels
   - Unicode text support with emoji
   - Automatic image scaling and alignment
-  - Configurable column label alignment (left, center, right)
-  - Adjustable top padding for label spacing
+  - Configurable label alignments (start, center, end)
+  - Multiline text support in labels
+  - Adjustable padding for both row and column labels
   - White background
 
 ## Installation
@@ -116,7 +117,7 @@ async fn convert_jxl() -> Result<()> {
 ### Create Image Grid Plots
 
 ```rust
-use imx::{PlotConfig, create_plot, ColumnLabelAlignment};
+use imx::{PlotConfig, create_plot, LabelAlignment};
 use std::path::PathBuf;
 use anyhow::Result;
 
@@ -130,16 +131,74 @@ fn create_image_grid() -> Result<()> {
         ],
         output: PathBuf::from("output.jpg"),
         rows: 2,
-        row_labels: vec!["Row 1".to_string(), "Row 2".to_string()],
-        column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
-        column_label_alignment: ColumnLabelAlignment::Center, // or Left, Right
-        top_padding: 40, // Adjust space for labels
+        row_labels: vec![
+            "Row 1\nDetails".to_string(),
+            "Row 2\nMore Info".to_string()
+        ],
+        column_labels: vec![
+            "Col 1\nFirst".to_string(),
+            "Col 2\nSecond".to_string()
+        ],
+        column_label_alignment: LabelAlignment::Center,
+        row_label_alignment: LabelAlignment::Start,
+        top_padding: 60, // More space for multiline column labels
+        left_padding: 80, // More space for multiline row labels
         debug_mode: false,
     };
 
     create_plot(&config)?;
     Ok(())
 }
+```
+
+### Label Features
+
+The library supports rich text formatting and alignment options for labels:
+
+1. **Multiline Text**
+   - Use `\n` in label strings for line breaks
+   - Labels automatically adjust spacing
+   - Works for both row and column labels
+   - Example: `"Title\nSubtitle"`
+
+2. **Label Alignment**
+   - Three alignment options:
+     - `Start` (Left/Top)
+     - `Center` (Default)
+     - `End` (Right/Bottom)
+   - Independent control for row and column labels
+
+3. **Adjustable Padding**
+   - `top_padding`: Space for column labels
+   - `left_padding`: Space for row labels
+   - Automatically expands for multiline text
+   - Default values provided
+
+### Examples with Different Alignments
+
+```rust
+// Center-aligned labels (default)
+let config = PlotConfig {
+    column_label_alignment: LabelAlignment::Center,
+    row_label_alignment: LabelAlignment::Center,
+    // ... other fields ...
+};
+
+// Left-aligned row labels, right-aligned column labels
+let config = PlotConfig {
+    column_label_alignment: LabelAlignment::End,
+    row_label_alignment: LabelAlignment::Start,
+    // ... other fields ...
+};
+
+// Multiline labels with custom padding
+let config = PlotConfig {
+    row_labels: vec!["Title\nSubtitle".to_string()],
+    column_labels: vec!["Header\nDetails".to_string()],
+    top_padding: 80,  // Extra space for two-line column labels
+    left_padding: 100, // Extra space for two-line row labels
+    // ... other fields ...
+};
 ```
 
 ### Safe Numeric Conversions
