@@ -442,33 +442,33 @@ fn calculate_layout(
     let fonts = load_fonts();
 
     // Calculate maximum dimensions for labels
-    let (max_row_label_width, max_row_label_height) = if !config.row_labels.is_empty() {
+    let (max_row_label_width, max_row_label_height) = if config.row_labels.is_empty() {
+        (0.0f32, 0)
+    } else {
         config.row_labels.iter()
             .map(|label| calculate_label_dimensions(label, fonts, 24.0))
             .fold((0.0f32, 0), |(w, h), (lw, lh)| (w.max(lw), h.max(lh)))
-    } else {
-        (0.0f32, 0)
     };
 
-    let (max_col_label_width, max_col_label_height) = if !config.column_labels.is_empty() {
+    let (max_col_label_width, max_col_label_height) = if config.column_labels.is_empty() {
+        (0.0f32, 0)
+    } else {
         config.column_labels.iter()
             .map(|label| calculate_label_dimensions(label, fonts, 24.0))
             .fold((0.0f32, 0), |(w, h), (lw, lh)| (w.max(lw), h.max(lh)))
-    } else {
-        (0.0f32, 0)
     };
 
     // Calculate layout dimensions
-    let left_padding = if !config.row_labels.is_empty() {
-        config.left_padding.max(i32_to_u32(f32_to_i32(max_row_label_width)) + 20)
-    } else {
+    let left_padding = if config.row_labels.is_empty() {
         0
+    } else {
+        config.left_padding.max(i32_to_u32(f32_to_i32(max_row_label_width)) + 20)
     };
 
-    let top_padding = if !config.column_labels.is_empty() {
-        config.top_padding.max(max_col_label_height + 20)
-    } else {
+    let top_padding = if config.column_labels.is_empty() {
         0
+    } else {
+        config.top_padding.max(max_col_label_height + 20)
     };
 
     let row_height = max_height + if has_labels { top_padding } else { 0 };
