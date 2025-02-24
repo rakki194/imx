@@ -1,6 +1,6 @@
 [package]
 name = "imx"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 description = "A library for image processing and manipulation"
 license = "MIT"
