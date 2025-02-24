@@ -228,3 +228,52 @@ pub fn i32_to_f32_for_pos(x: i32) -> f32 {
     let result = x as f32;
     result
 }
+
+/// Converts an f32 to a u32, handling NaN, infinity, and out-of-range values.
+///
+/// This function provides safe conversion from f32 to u32 with consistent handling
+/// of edge cases and proper rounding behavior. Note that due to f32's precision
+/// limitations, values very close to u32::MAX may be rounded to u32::MAX.
+///
+/// # Examples
+///
+/// ```
+/// use imx::numeric::f32_to_u32;
+///
+/// assert_eq!(f32_to_u32(0.0), 0);
+/// assert_eq!(f32_to_u32(1.4), 1);
+/// assert_eq!(f32_to_u32(1.6), 2);
+/// assert_eq!(f32_to_u32(-1.0), 0); // Negative values clamp to 0
+/// assert_eq!(f32_to_u32(f32::NAN), 0);
+/// assert_eq!(f32_to_u32(f32::INFINITY), u32::MAX);
+/// ```
+#[must_use]
+pub fn f32_to_u32(x: f32) -> u32 {
+    if x.is_nan() {
+        0
+    } else if x.is_infinite() {
+        if x.is_sign_positive() {
+            u32::MAX
+        } else {
+            0
+        }
+    } else if x <= 0.0 {
+        0
+    } else {
+        // For values near u32::MAX, we need to be extra careful
+        let max_f32 = u32::MAX as f32;
+        
+        // Round first to handle fractional values consistently
+        let rounded = x.round();
+        
+        // If the value is very close to u32::MAX, return u32::MAX
+        if rounded >= max_f32 {
+            u32::MAX
+        } else {
+            // Safe because we've bounded x below u32::MAX
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let result = rounded as u32;
+            result
+        }
+    }
+}

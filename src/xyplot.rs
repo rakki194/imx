@@ -43,7 +43,7 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-use crate::numeric::{f32_to_i32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32, u32_to_i32};
+use crate::numeric::{f32_to_i32, f32_to_u32, f32_to_u8, i32_to_f32_for_pos, i32_to_u32, u32_to_i32};
 use ab_glyph::{Font, FontRef, GlyphId, Point, PxScale, ScaleFont};
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
@@ -356,27 +356,6 @@ fn load_fonts() -> FontPair<'static> {
     }
 }
 
-fn calculate_left_padding(row_labels: &[String], fonts: FontPair) -> i32 {
-    if row_labels.iter().any(|l| !l.is_empty()) {
-        let max_label_width = row_labels
-            .iter()
-            .map(|label| {
-                let mut width = 0.0;
-                for c in label.chars() {
-                    let (id, font) = fonts.glyph_id(c);
-                    let scaled_font = font.as_scaled(PxScale::from(24.0));
-                    width += scaled_font.h_advance(id);
-                }
-                width
-            })
-            .fold(0.0, f32::max);
-
-        f32_to_i32(max_label_width + 40.0)
-    } else {
-        0
-    }
-}
-
 fn find_max_dimensions(images: &[PathBuf]) -> Result<(u32, u32)> {
     let mut max_width = 0;
     let mut max_height = 0;
@@ -406,8 +385,8 @@ pub(crate) fn calculate_label_width(label: &str, fonts: FontPair, scale: f32) ->
 /// Calculate the width and height needed for a multiline label
 fn calculate_label_dimensions(label: &str, fonts: FontPair, scale: f32) -> (f32, u32) {
     let lines: Vec<&str> = label.split('\n').collect();
-    let line_height = scale as u32;
-    let total_height = line_height * lines.len() as u32;
+    let line_height = f32_to_u32(scale);
+    let total_height = line_height * u32::try_from(lines.len()).unwrap_or(0);
     
     let max_width = lines.iter()
         .map(|line| calculate_label_width(line, fonts, scale))
@@ -425,13 +404,14 @@ fn draw_multiline_text(
     fonts: FontPair,
     color: Rgb<u8>,
 ) {
-    let line_height = scale as i32;
+    let line_height = f32_to_i32(scale);
     for (i, line) in text.split('\n').enumerate() {
-        let line_y = y + (i as i32 * line_height);
+        let line_y = y + i32::try_from(i).unwrap_or(0) * line_height;
         draw_text(canvas, line, x, line_y, scale, fonts, color);
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn calculate_layout(
     config: &PlotConfig,
     max_width: u32,
@@ -442,7 +422,7 @@ fn calculate_layout(
     let fonts = load_fonts();
 
     // Calculate maximum dimensions for labels
-    let (max_row_label_width, max_row_label_height) = if config.row_labels.is_empty() {
+    let (max_row_label_width, _max_row_label_height) = if config.row_labels.is_empty() {
         (0.0f32, 0)
     } else {
         config.row_labels.iter()
@@ -450,7 +430,7 @@ fn calculate_layout(
             .fold((0.0f32, 0), |(w, h), (lw, lh)| (w.max(lw), h.max(lh)))
     };
 
-    let (max_col_label_width, max_col_label_height) = if config.column_labels.is_empty() {
+    let (_max_col_label_width, max_col_label_height) = if config.column_labels.is_empty() {
         (0.0f32, 0)
     } else {
         config.column_labels.iter()

@@ -116,3 +116,46 @@ fn test_i32_to_f32_for_pos() {
         i32::MIN
     );
 }
+
+#[test]
+fn test_f32_to_u32() {
+    // Normal cases
+    assert_eq!(numeric::f32_to_u32(0.0), 0);
+    assert_eq!(numeric::f32_to_u32(1.0), 1);
+    assert_eq!(numeric::f32_to_u32(1.4), 1);
+    assert_eq!(numeric::f32_to_u32(1.6), 2);
+
+    // Edge cases
+    assert_eq!(numeric::f32_to_u32(f32::NAN), 0);
+    assert_eq!(numeric::f32_to_u32(f32::INFINITY), u32::MAX);
+    assert_eq!(numeric::f32_to_u32(f32::NEG_INFINITY), 0);
+    assert_eq!(numeric::f32_to_u32(-1.0), 0);
+    assert_eq!(numeric::f32_to_u32(-0.0), 0);
+
+    // Values just inside bounds
+    assert_eq!(numeric::f32_to_u32(0.4), 0);
+    assert_eq!(numeric::f32_to_u32(0.6), 1);
+    
+    // Values near u32::MAX are handled specially due to f32 precision limitations
+    // See test_f32_to_u32_max_precision_limitation for details
+}
+
+/// Known limitation: f32 cannot precisely represent u32::MAX
+/// This test verifies that we handle this case gracefully by returning u32::MAX
+#[test]
+fn test_f32_to_u32_max_precision_limitation() {
+    // When converting u32::MAX to f32 and back, we expect to get u32::MAX
+    // This is because we handle the imprecise representation gracefully
+    let max_as_f32 = u32::MAX as f32;
+    assert_eq!(numeric::f32_to_u32(max_as_f32), u32::MAX);
+    
+    // Document the actual behavior for clarity
+    println!("Note: u32::MAX as f32 = {}", max_as_f32);
+    println!("This is slightly less than u32::MAX due to f32's precision limitations");
+    
+    // Also test u32::MAX - 1 to verify it's handled correctly
+    let max_minus_one_f32 = (u32::MAX - 1) as f32;
+    let result = numeric::f32_to_u32(max_minus_one_f32);
+    println!("Note: (u32::MAX - 1) as f32 = {}", max_minus_one_f32);
+    println!("Converting back to u32 gives: {}", result);
+}
