@@ -333,6 +333,16 @@ fn find_max_dimensions(images: &[PathBuf]) -> Result<(u32, u32)> {
     Ok((max_width, max_height))
 }
 
+fn calculate_label_width(label: &str, fonts: FontPair, scale: f32) -> f32 {
+    let mut width = 0.0;
+    for c in label.chars() {
+        let (id, font) = fonts.glyph_id(c);
+        let scaled_font = font.as_scaled(PxScale::from(scale));
+        width += scaled_font.h_advance(id);
+    }
+    width
+}
+
 fn draw_column_labels(
     canvas: &mut RgbImage,
     column_labels: &[String],
@@ -340,10 +350,26 @@ fn draw_column_labels(
     left_padding: i32,
     fonts: FontPair,
 ) {
+    // Font scale for column labels
+    let font_scale = 24.0;
+    
+    // Calculate the maximum label width to ensure consistent padding
+    let max_label_width = column_labels
+        .iter()
+        .map(|label| calculate_label_width(label, fonts, font_scale))
+        .fold(0.0, f32::max);
+    
+    // Calculate padding to ensure labels don't overlap with images
+    // Use 10% of the maximum width or the label width, whichever is smaller
+    let padding = f32::min((max_width as f32) * 0.1, max_label_width * 0.25);
+    
     for (col, label) in column_labels.iter().enumerate() {
-        let x = u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
+        // Calculate the actual x position where the image starts
+        let x_start = u32_to_i32(u32::try_from(col).unwrap_or(0) * max_width + i32_to_u32(left_padding));
+        // Add calculated padding
+        let x = x_start + f32_to_i32(padding);
         let y = u32_to_i32(TOP_PADDING / 2);
-        draw_text(canvas, label, x, y, 24.0, fonts, Rgb([0, 0, 0]));
+        draw_text(canvas, label, x, y, font_scale, fonts, Rgb([0, 0, 0]));
     }
 }
 

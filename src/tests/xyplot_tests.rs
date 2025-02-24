@@ -364,7 +364,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     // Check each column label position
     for col in 0..3 {
         let expected_x = left_padding + (col * cell_width);
-
+        
         // Check that text exists at the start of each cell
         assert!(
             has_black_pixels(expected_x, 0, 50, 40),
