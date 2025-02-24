@@ -233,7 +233,7 @@ pub fn i32_to_f32_for_pos(x: i32) -> f32 {
 ///
 /// This function provides safe conversion from f32 to u32 with consistent handling
 /// of edge cases and proper rounding behavior. Note that due to f32's precision
-/// limitations, values very close to u32::MAX may be rounded to u32::MAX.
+/// limitations, values very close to `u32::MAX` may be rounded to `u32::MAX`.
 ///
 /// # Examples
 ///
