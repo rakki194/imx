@@ -65,20 +65,22 @@ pub const DEFAULT_LEFT_PADDING: u32 = 40;
 /// - An emoji font (Noto Color Emoji) for emoji characters
 ///
 /// The struct automatically selects the appropriate font for each character
-/// based on glyph availability.
+/// based on glyph availability and Unicode ranges.
 #[derive(Clone, Copy)]
 pub(crate) struct FontPair<'a> {
     /// Main font for regular text (`DejaVu` Sans)
-    main: &'a FontRef<'a>,
+    pub(crate) main: &'a FontRef<'a>,
     /// Emoji font for emoji characters (Noto Color Emoji)
-    emoji: &'a FontRef<'a>,
+    pub(crate) emoji: &'a FontRef<'a>,
 }
 
 impl<'a> FontPair<'a> {
     /// Gets the appropriate glyph ID and font for a character.
     ///
-    /// This method attempts to use the main font first, falling back to
-    /// the emoji font if the character is not available in the main font.
+    /// This method determines which font to use based on:
+    /// 1. Whether the character is in the emoji Unicode ranges
+    /// 2. Whether the font has a color emoji glyph for the character
+    /// 3. Falling back to the main font if neither condition is met
     ///
     /// # Arguments
     ///
@@ -89,12 +91,38 @@ impl<'a> FontPair<'a> {
     /// Returns a tuple containing:
     /// - The glyph ID for the character
     /// - A reference to the font that contains the glyph
-    fn glyph_id(&self, c: char) -> (GlyphId, &'a FontRef<'a>) {
+    pub(crate) fn glyph_id(&self, c: char) -> (GlyphId, &'a FontRef<'a>) {
+        // First check if it's in the emoji Unicode ranges
+        let is_emoji = match c as u32 {
+            // Emoticons
+            0x1F600..=0x1F64F |
+            // Transport and Map Symbols
+            0x1F680..=0x1F6FF |
+            // Miscellaneous Symbols and Pictographs
+            0x1F300..=0x1F5FF |
+            // Additional emoticons and symbols
+            0x1F900..=0x1F9FF |
+            // Supplemental Symbols and Pictographs
+            0x1FA70..=0x1FAFF |
+            // Symbols and Pictographs Extended-A
+            0x1FA00..=0x1FA6F => true,
+            _ => false
+        };
+
+        if is_emoji {
+            let emoji_id = self.emoji.glyph_id(c);
+            // Check if the emoji font has a color glyph for this character
+            if self.emoji.glyph_raster_image2(emoji_id, u16::MAX).is_some() {
+                return (emoji_id, self.emoji);
+            }
+        }
+
+        // Try main font
         let main_id = self.main.glyph_id(c);
-        // Check if the main font has a real glyph for this char (not a .notdef glyph)
         if self.main.outline(main_id).is_some() {
             (main_id, self.main)
         } else {
+            // Fall back to emoji font even if it might not have the glyph
             let emoji_id = self.emoji.glyph_id(c);
             (emoji_id, self.emoji)
         }
@@ -106,7 +134,7 @@ impl<'a> FontPair<'a> {
 /// This function handles text rendering with the following features:
 /// - Mixed regular text and emoji support
 /// - Anti-aliasing with alpha blending
-/// - Color emoji rendering
+/// - Color emoji rendering with proper scaling
 /// - Proper text positioning and scaling
 ///
 /// # Arguments
@@ -152,36 +180,7 @@ fn draw_text(
         let glyph_position = glyph.position;
         let glyph_id = glyph.id;
 
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            outlined.draw(|x, y, coverage| {
-                let alpha = f32_to_u8(coverage * 255.0);
-                if alpha == 0 {
-                    return;
-                }
-
-                #[allow(clippy::cast_precision_loss)]
-                let px = i32_to_u32(f32_to_i32((x as f32) + bounds.min.x));
-                #[allow(clippy::cast_precision_loss)]
-                let py = i32_to_u32(f32_to_i32((y as f32) + bounds.min.y));
-
-                if px < canvas.width() && py < canvas.height() {
-                    let pixel = canvas.get_pixel_mut(px, py);
-                    let blend = |a: u8, b: u8, alpha: u8| -> u8 {
-                        let a = f32::from(a);
-                        let b = f32::from(b);
-                        let alpha = f32::from(alpha) / 255.0;
-                        f32_to_u8(a * (1.0 - alpha) + b * alpha)
-                    };
-
-                    pixel[0] = blend(pixel[0], color[0], alpha);
-                    pixel[1] = blend(pixel[1], color[1], alpha);
-                    pixel[2] = blend(pixel[2], color[2], alpha);
-                }
-            });
-        }
-
-        // Check for color emoji image
+        // First try to render as a color emoji
         if let Some(img) = font.glyph_raster_image2(glyph_id, u16::MAX) {
             let img_width = u32::from(img.width);
             let scale_factor = scale / f32::from(img.pixels_per_em);
@@ -209,6 +208,37 @@ fn draw_text(
                     }
                 }
             }
+            continue; // Skip outline rendering for color emoji
+        }
+
+        // Fall back to outline rendering for regular text
+        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
+            let bounds = outlined.px_bounds();
+            outlined.draw(|x, y, coverage| {
+                let alpha = f32_to_u8(coverage * 255.0);
+                if alpha == 0 {
+                    return;
+                }
+
+                #[allow(clippy::cast_precision_loss)]
+                let px = i32_to_u32(f32_to_i32((x as f32) + bounds.min.x));
+                #[allow(clippy::cast_precision_loss)]
+                let py = i32_to_u32(f32_to_i32((y as f32) + bounds.min.y));
+
+                if px < canvas.width() && py < canvas.height() {
+                    let pixel = canvas.get_pixel_mut(px, py);
+                    let blend = |a: u8, b: u8, alpha: u8| -> u8 {
+                        let a = f32::from(a);
+                        let b = f32::from(b);
+                        let alpha = f32::from(alpha) / 255.0;
+                        f32_to_u8(a * (1.0 - alpha) + b * alpha)
+                    };
+
+                    pixel[0] = blend(pixel[0], color[0], alpha);
+                    pixel[1] = blend(pixel[1], color[1], alpha);
+                    pixel[2] = blend(pixel[2], color[2], alpha);
+                }
+            });
         }
     }
 }
@@ -334,7 +364,7 @@ fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
 /// This function loads both the main font (`DejaVu` Sans) and emoji font (Noto Color Emoji)
 /// from embedded binary data. The fonts are stored as static data to ensure they live
 /// for the entire program duration.
-fn load_fonts() -> FontPair<'static> {
+pub(crate) fn load_fonts() -> FontPair<'static> {
     // Define static font data
     static MAIN_FONT_DATA: &[u8] = include_bytes!("../assets/DejaVuSans.ttf");
     static EMOJI_FONT_DATA: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");

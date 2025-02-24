@@ -192,4 +192,5 @@ mod tests {
     mod jxl_tests;
     mod numeric_tests;
     mod xyplot_tests;
+    mod font_tests;
 }
