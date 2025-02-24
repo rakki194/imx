@@ -363,7 +363,10 @@ fn draw_column_labels(
 
     // Calculate padding to ensure labels don't overlap with images
     // Use 10% of the maximum width or the label width, whichever is smaller
-    let padding = f32::min((max_width as f32) * 0.1, max_label_width * 0.25);
+    let padding = f32::min(
+        i32_to_f32_for_pos(u32_to_i32(max_width)) * 0.1,
+        max_label_width * 0.25
+    );
 
     for (col, (label, img_path)) in column_labels.iter().zip(images.iter()).enumerate() {
         // Get the actual image width to calculate offset
