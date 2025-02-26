@@ -38,6 +38,32 @@ A Rust library for image processing and manipulation, providing functionality fo
 cargo add imx
 ```
 
+## Logging Configuration
+
+The library uses the `log` crate for logging. You can control the log level using the `RUST_LOG` environment variable:
+
+```bash
+# Show only errors
+export RUST_LOG=error
+
+# Show info and errors (default)
+export RUST_LOG=info
+
+# Show debug information
+export RUST_LOG=debug
+
+# Show all log messages
+export RUST_LOG=trace
+```
+
+Log levels:
+
+- `error`: Shows critical errors that prevent processing
+- `warn`: Shows warnings about potential issues
+- `info`: Shows progress and success messages
+- `debug`: Shows detailed processing information (dimensions, calculations, etc.)
+- `trace`: Shows very detailed internal operations
+
 ## Usage Examples
 
 ### Image Processing

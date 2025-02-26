@@ -1,9 +1,12 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use super::super::xyplot::{PlotConfig, create_plot, LabelAlignment, DEFAULT_TOP_PADDING, DEFAULT_LEFT_PADDING};
+use super::super::xyplot::{
+    DEFAULT_LEFT_PADDING, DEFAULT_TOP_PADDING, LabelAlignment, PlotConfig, create_plot,
+};
 use crate::numeric::i32_to_u32;
 use anyhow::Result;
 use image::{GenericImageView, Rgb, RgbImage};
+use log::debug;
 use tempfile::tempdir;
 
 fn create_test_image(path: &std::path::Path, width: u32, height: u32) -> Result<()> {
@@ -474,30 +477,32 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
         let image_offset = (max_width - img_width) / 2;
         let image_start = cell_start + image_offset;
         let image_center = image_start + (img_width / 2);
-        
+
         // Calculate label position (centered over image)
         let label_width = if col == 0 { 50 } else { 80 }; // Width for "Tall" vs "Wide"
         let label_start = image_start + ((img_width as i32 - label_width) / 2);
-        
+
         // Check a small region after the expected label position
         let check_start = label_start + label_width + 10; // Small padding after expected label end
         let check_width = 20; // Small fixed width to check for unexpected text
-        
+
         // Debug print to help understand the values
-        eprintln!(
+        debug!(
             "Col {}: cell_start={}, image_offset={}, image_start={}, image_center={}, label_start={}, check_start={}, check_width={}",
-            col, cell_start, image_offset, image_start, image_center, label_start, check_start, check_width
+            col,
+            cell_start,
+            image_offset,
+            image_start,
+            image_center,
+            label_start,
+            check_start,
+            check_width
         );
-        
+
         // Only check if we're not too close to the image center
         if check_start + check_width as i32 <= image_center {
             assert!(
-                !has_black_pixels(
-                    check_start.try_into().unwrap(),
-                    0,
-                    check_width,
-                    40
-                ),
+                !has_black_pixels(check_start.try_into().unwrap(), 0, check_width, 40),
                 "Found unexpected text in cell {} between label and image center at position ({}, 0)",
                 col,
                 check_start
@@ -593,9 +598,19 @@ fn test_column_label_alignments() -> Result<()> {
     let second_col_x = i32_to_u32(left_padding) + (2 * cell_width) - 50;
 
     // Debug print dimensions and search areas
-    eprintln!("Image dimensions: {}x{}", output_img.width(), output_img.height());
-    eprintln!("Searching for first column text at x={}, width=50", first_col_x);
-    eprintln!("Searching for second column text at x={}, width=50", second_col_x);
+    debug!(
+        "Image dimensions: {}x{}",
+        output_img.width(),
+        output_img.height()
+    );
+    debug!(
+        "Searching for first column text at x={}, width=50",
+        first_col_x
+    );
+    debug!(
+        "Searching for second column text at x={}, width=50",
+        second_col_x
+    );
 
     // Search in a wider area for the first column
     let mut found_first = false;
@@ -603,7 +618,7 @@ fn test_column_label_alignments() -> Result<()> {
         let search_x = first_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_first = true;
-            eprintln!("Found first column text at x_offset={}", x_offset);
+            debug!("Found first column text at x_offset={}", x_offset);
             break;
         }
     }
@@ -615,7 +630,7 @@ fn test_column_label_alignments() -> Result<()> {
         let search_x = second_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_second = true;
-            eprintln!("Found second column text at x_offset={}", x_offset);
+            debug!("Found second column text at x_offset={}", x_offset);
             break;
         }
     }
@@ -655,7 +670,10 @@ fn test_debug_mode() -> Result<()> {
     let debug_output = output_path.with_file_name(format!(
         "{}_debug{}",
         output_path.file_stem().unwrap().to_string_lossy(),
-        output_path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default()
+        output_path
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default()
     ));
     assert!(debug_output.exists());
 
@@ -671,7 +689,11 @@ fn test_column_label_alignments_comprehensive() -> Result<()> {
     create_test_image(&img1_path, 100, 100)?;
 
     // Test all alignment options
-    for alignment in [LabelAlignment::Start, LabelAlignment::Center, LabelAlignment::End] {
+    for alignment in [
+        LabelAlignment::Start,
+        LabelAlignment::Center,
+        LabelAlignment::End,
+    ] {
         let config = PlotConfig {
             images: vec![img1_path.clone()],
             output: output_path.clone(),
@@ -887,32 +909,39 @@ fn test_multiline_column_labels() -> Result<()> {
     let left_padding = DEFAULT_LEFT_PADDING;
 
     // First column
-    assert!(has_black_pixels(
-        left_padding,
-        0,
-        cell_width,
-        DEFAULT_TOP_PADDING / 2
-    ), "First line of first column not found");
-    assert!(has_black_pixels(
-        left_padding,
-        DEFAULT_TOP_PADDING / 2,
-        cell_width,
-        DEFAULT_TOP_PADDING / 2
-    ), "Second line of first column not found");
+    assert!(
+        has_black_pixels(left_padding, 0, cell_width, DEFAULT_TOP_PADDING / 2),
+        "First line of first column not found"
+    );
+    assert!(
+        has_black_pixels(
+            left_padding,
+            DEFAULT_TOP_PADDING / 2,
+            cell_width,
+            DEFAULT_TOP_PADDING / 2
+        ),
+        "Second line of first column not found"
+    );
 
     // Second column
-    assert!(has_black_pixels(
-        left_padding + cell_width,
-        0,
-        cell_width,
-        DEFAULT_TOP_PADDING / 2
-    ), "First line of second column not found");
-    assert!(has_black_pixels(
-        left_padding + cell_width,
-        DEFAULT_TOP_PADDING / 2,
-        cell_width,
-        DEFAULT_TOP_PADDING / 2
-    ), "Second line of second column not found");
+    assert!(
+        has_black_pixels(
+            left_padding + cell_width,
+            0,
+            cell_width,
+            DEFAULT_TOP_PADDING / 2
+        ),
+        "First line of second column not found"
+    );
+    assert!(
+        has_black_pixels(
+            left_padding + cell_width,
+            DEFAULT_TOP_PADDING / 2,
+            cell_width,
+            DEFAULT_TOP_PADDING / 2
+        ),
+        "Second line of second column not found"
+    );
 
     Ok(())
 }
@@ -964,20 +993,16 @@ fn test_multiline_row_labels() -> Result<()> {
     let row_height = 100;
 
     // First row
-    assert!(has_black_pixels(
-        0,
-        0,
-        DEFAULT_LEFT_PADDING,
-        row_height
-    ), "First line of first row not found");
+    assert!(
+        has_black_pixels(0, 0, DEFAULT_LEFT_PADDING, row_height),
+        "First line of first row not found"
+    );
 
     // Second row
-    assert!(has_black_pixels(
-        0,
-        row_height,
-        DEFAULT_LEFT_PADDING,
-        row_height
-    ), "First line of second row not found");
+    assert!(
+        has_black_pixels(0, row_height, DEFAULT_LEFT_PADDING, row_height),
+        "First line of second row not found"
+    );
 
     Ok(())
 }
@@ -990,7 +1015,11 @@ fn test_row_label_alignments() -> Result<()> {
 
     create_test_image(&img1_path, 100, 100)?;
 
-    for alignment in [LabelAlignment::Start, LabelAlignment::Center, LabelAlignment::End] {
+    for alignment in [
+        LabelAlignment::Start,
+        LabelAlignment::Center,
+        LabelAlignment::End,
+    ] {
         let config = PlotConfig {
             images: vec![img1_path.clone()],
             output: output_path.clone(),
@@ -1076,8 +1105,14 @@ fn test_dynamic_padding_with_multiline() -> Result<()> {
     let (width, height) = output_img.dimensions();
 
     // Verify that the padding areas are large enough for multiline text
-    assert!(width > DEFAULT_LEFT_PADDING + 100, "Width should accommodate multiline row labels");
-    assert!(height > DEFAULT_TOP_PADDING + 100, "Height should accommodate multiline column labels");
+    assert!(
+        width > DEFAULT_LEFT_PADDING + 100,
+        "Width should accommodate multiline row labels"
+    );
+    assert!(
+        height > DEFAULT_TOP_PADDING + 100,
+        "Height should accommodate multiline column labels"
+    );
 
     Ok(())
 }
