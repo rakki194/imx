@@ -1,38 +1,19 @@
-# imx
+# imx - Rust Image Processing Library
 
-A Rust library for image processing and manipulation, providing functionality for letterbox removal, transparency handling, JXL format support, and image grid plotting.
+A comprehensive Rust library for image processing, manipulation, and visualization.
 
 ## Features
 
-- 🖼️ Image Processing
-  - Remove letterboxing from images with configurable threshold
-  - Remove transparency (convert to black)
-  - Get image dimensions
-  - Process images in batches
-  - Create image grid plots with labels
-  - Safe numeric conversions for image data
-- 📸 Format Support
-  - JPEG/JPG
-  - PNG
-  - WebP
-  - JXL (JPEG XL) with automatic PNG conversion
-- 🛠️ Utilities
-  - File type detection with magic number validation
-  - Async/await support with proper lifetime handling
-  - Error handling with detailed context
-  - Structured logging with info/warn levels
-  - Safe numeric type conversions (f32 ↔ i32 ↔ u32 ↔ u8)
-  - Unicode text rendering with emoji support
-  - Automatic image scaling and alignment
-  - Support for row and column labels
-  - Unicode text support with emoji
-  - Automatic image scaling and alignment
-  - Configurable label alignments (start, center, end)
-  - Multiline text support in labels
-  - Adjustable padding for both row and column labels
-  - White background
+- 🖼️ **Image Processing**: Remove letterboxing, handle transparency, process in batch
+- 🔄 **Format Support**: JPEG, PNG, WebP, JXL (JPEG XL)
+- 🔢 **Numeric Utilities**: Safe type conversions for image data
+- 📊 **XY Plotting**: Create image grid plots with labels
+- ⚡ **High Performance**: Async/await support for parallel processing
+- 🧰 **File Utilities**: File type detection, error handling
 
 ## Installation
+
+Add the following to your `Cargo.toml`:
 
 ```bash
 cargo add imx
@@ -40,378 +21,646 @@ cargo add imx
 
 ## Logging Configuration
 
-The library uses the `log` crate for logging. You can control the log level using the `RUST_LOG` environment variable:
-
-```bash
-# Show only errors
-export RUST_LOG=error
-
-# Show info and errors (default)
-export RUST_LOG=info
-
-# Show debug information
-export RUST_LOG=debug
-
-# Show all log messages
-export RUST_LOG=trace
-```
-
-Log levels:
-
-- `error`: Shows critical errors that prevent processing
-- `warn`: Shows warnings about potential issues
-- `info`: Shows progress and success messages
-- `debug`: Shows detailed processing information (dimensions, calculations, etc.)
-- `trace`: Shows very detailed internal operations
-
-## Usage Examples
-
-### Image Processing
+This library uses the `log` crate for logging and outputs detailed information about processing steps.
+Configure a logger (e.g., `env_logger`, `simplelog`) in your application:
 
 ```rust
-use imx::{remove_letterbox, remove_letterbox_with_threshold, remove_transparency};
-use anyhow::Result;
+// Example with env_logger
+use env_logger::{Builder, Env};
+
+fn main() {
+    // Initialize logger with INFO level by default
+    Builder::from_env(Env::default().default_filter_or("info"))
+        .init();
+    
+    // Your code that uses imx...
+}
+```
+
+## Core Function Reference
+
+### Image Processing Functions
+
+#### `remove_letterbox`
+
+Removes black borders (letterboxing) from an image by automatically detecting and cropping them.
+
+```rust
+async fn remove_letterbox(path: &Path) -> Result<()>
+```
+
+- **Arguments**: `path` - Path to the image file
+- **Returns**: `Result<()>` indicating success or failure
+- **Behavior**: Uses a threshold value of 0 (exact black) for letterbox detection
+- **Error Cases**: Image cannot be opened or saved
+- **Performance**: Processes the entire image; higher resolution images will take longer
+
+#### `remove_letterbox_with_threshold`
+
+Similar to `remove_letterbox` but allows specifying a threshold value to detect borders.
+
+```rust
+async fn remove_letterbox_with_threshold(path: &Path, threshold: u8) -> Result<()>
+```
+
+- **Arguments**:
+  - `path` - Path to the image file
+  - `threshold` - Threshold value (0-255) for detecting letterbox borders
+- **Details**: Pixels with RGB values below this threshold are considered part of the letterbox
+- **Use Cases**: Useful for images with slightly off-black letterboxing
+
+#### `remove_transparency`
+
+Replaces transparent pixels with black, opaque pixels.
+
+```rust
+async fn remove_transparency(path: &Path) -> Result<()>
+```
+
+- **Arguments**: `path` - Path to the image file
+- **Behavior**: Scans the image and replaces any pixel with 0 alpha with black (RGB 0,0,0) and full opacity
+- **When to Use**: Helpful when converting to formats that don't support transparency or when removing transparent regions
+
+#### `get_image_dimensions`
+
+Retrieves the width and height of an image.
+
+```rust
+fn get_image_dimensions(path: &Path) -> Result<(u32, u32)>
+```
+
+- **Arguments**: `path` - Path to the image file
+- **Returns**: A tuple of `(width, height)` as `u32` values
+- **Error Cases**: Image cannot be opened or is corrupt
+
+#### `process_image`
+
+Generic function to apply any async image processing operation to a file.
+
+```rust
+async fn process_image<F, Fut>(path: PathBuf, processor: F) -> Result<()>
+where
+    F: FnOnce(PathBuf) -> Fut,
+    Fut: std::future::Future<Output = Result<()>>
+```
+
+- **Arguments**:
+  - `path` - Path to the image file to process
+  - `processor` - Async function that performs the actual image processing
+- **Features**: Handles file existence checks and error propagation
+- **Advanced Usage**: Allows implementing custom image processors
+
+#### `is_image_file`
+
+Determines if a file is an image by checking both extension and file contents.
+
+```rust
+fn is_image_file(path: &Path) -> bool
+```
+
+- **Arguments**: `path` - Path to check
+- **Behavior**: Checks for valid image extension, then verifies file contents via magic numbers
+- **Security**: Prevents processing of files with incorrect extensions (security measure)
+
+#### `detect_image_format`
+
+Detects image format from file contents using magic numbers.
+
+```rust
+fn detect_image_format(buffer: &[u8]) -> Option<DetectedImageFormat>
+```
+
+- **Arguments**: `buffer` - Byte buffer containing the file header
+- **Returns**: The detected format or None if unknown
+- **Supported Formats**: JPEG, PNG, WebP, JXL
+- **Buffer Size**: Requires at least 12 bytes of the file header
+
+### Format Conversion Functions
+
+#### `convert_image`
+
+Converts an image from one format to another with format-specific options.
+
+```rust
+async fn convert_image(
+    input_path: &Path,
+    output_path: &Path,
+    options: Option<ImageFormatOptions>
+) -> Result<()>
+```
+
+- **Arguments**:
+  - `input_path` - Path to the input image
+  - `output_path` - Path where the converted image should be saved
+  - `options` - Optional format-specific conversion options
+- **Supported Formats**: JPEG, PNG, WebP, and others supported by the `image` crate
+- **Quality Control**: Options allow setting compression quality, lossless mode
+- **Directory Creation**: Automatically creates destination directory if it doesn't exist
+
+#### `convert_images_batch`
+
+Converts multiple images in a batch operation.
+
+```rust
+async fn convert_images_batch(
+    input_paths: &[PathBuf],
+    output_dir: &Path,
+    output_format: ImageFormat,
+    options: Option<ImageFormatOptions>
+) -> Result<()>
+```
+
+- **Arguments**:
+  - `input_paths` - List of input image paths
+  - `output_dir` - Directory where converted images should be saved
+  - `output_format` - Target format for conversion
+  - `options` - Optional format-specific conversion options
+- **Behavior**: Processes each image, maintaining original filenames with new extensions
+- **Progress Reporting**: Logs progress information during batch processing
+- **Performance**: Serial processing - doesn't execute conversions in parallel
+
+#### `detect_format_from_extension`
+
+Detects image format from file extension.
+
+```rust
+fn detect_format_from_extension(path: &Path) -> Option<ImageFormat>
+```
+
+- **Arguments**: `path` - Path to check for format
+- **Returns**: `Some(ImageFormat)` if a supported format is detected, `None` otherwise
+- **Case Sensitivity**: Extension matching is case-insensitive
+
+#### `ImageFormatOptions`
+
+Struct for configuring image format conversion options.
+
+```rust
+struct ImageFormatOptions {
+    quality: u8,           // Quality value (1-100)
+    lossless: bool,        // Whether to use lossless compression
+    extra_options: HashMap<String, String>  // Format-specific options
+}
+```
+
+- **Default Factory Methods**:
+  - `ImageFormatOptions::default()` - 85% quality, lossy compression
+  - `ImageFormatOptions::jpeg()` - 85% quality, lossy compression
+  - `ImageFormatOptions::png()` - 100% quality, lossless compression
+  - `ImageFormatOptions::webp()` - 85% quality, lossy compression
+- **Customization Methods**:
+  - `.with_quality(quality: u8)` - Set specific quality level
+  - `.with_lossless(lossless: bool)` - Toggle lossless compression
+  - `.with_option(key: &str, value: &str)` - Add format-specific option
+
+### JPEG XL Functions
+
+#### `is_jxl_file`
+
+Checks if a file is a JPEG XL image by examining its file extension.
+
+```rust
+fn is_jxl_file(path: &Path) -> bool
+```
+
+- **Arguments**: `path` - Path to the file to check
+- **Behavior**: Performs a case-insensitive check for the ".jxl" extension
+- **Limitations**: Only checks extension, not file contents
+- **When to Use**: Quick filtering of files by extension
+
+#### `convert_jxl_to_png`
+
+Converts a JPEG XL image to PNG format.
+
+```rust
+async fn convert_jxl_to_png(input_path: &Path, output_path: &Path) -> Result<()>
+```
+
+- **Arguments**:
+  - `input_path` - Path to the input JXL file
+  - `output_path` - Path where the PNG file should be saved
+- **Process**:
+  1. Reads the JXL file from disk
+  2. Decodes the JXL data using `jxl-oxide`
+  3. Converts the pixel data to RGBA format
+  4. Saves the result as a PNG file
+- **Supported**: Both RGB and RGBA JXL images
+- **Alpha Handling**: For RGB images, alpha channel is set to fully opaque
+
+#### `process_jxl_file`
+
+Processes a JXL file with an optional custom processor function.
+
+```rust
+async fn process_jxl_file<F, Fut>(
+    input_path: &Path, 
+    processor: Option<F>
+) -> Result<()>
+where
+    F: FnOnce(PathBuf) -> Fut + Send,
+    Fut: std::future::Future<Output = Result<()>> + Send
+```
+
+- **Arguments**:
+  - `input_path` - Path to the JXL file
+  - `processor` - Optional function to process the decoded PNG
+- **Behavior**: Converts JXL to temporary PNG file, applies processor, then cleans up
+- **Advanced Usage**: Allows custom transformations of JXL files
+- **Cleanup**: Automatically removes temporary files
+
+### Numeric Functions
+
+#### `f32_to_i32`
+
+Safely converts an f32 to i32, with proper rounding and range clamping.
+
+```rust
+fn f32_to_i32(x: f32) -> i32
+```
+
+- **Arguments**: `x` - The f32 value to convert
+- **Returns**: The converted i32 value, properly rounded and clamped
+- **Special Cases**:
+  - NaN values are converted to 0
+  - Values outside i32's range are clamped to `i32::MIN` or `i32::MAX`
+  - Values are rounded to the nearest integer using banker's rounding
+- **Safety Guarantees**: No undefined behavior or panics
+
+#### `i32_to_u32`
+
+Safely converts an i32 to u32, clamping negative values to 0.
+
+```rust
+fn i32_to_u32(x: i32) -> u32
+```
+
+- **Arguments**: `x` - The i32 value to convert
+- **Returns**: The converted u32 value, with negative inputs clamped to 0
+- **Use Cases**: Working with unsigned quantities like array indices or dimensions
+
+#### `u32_to_i32`
+
+Safely converts a u32 to i32, clamping values exceeding i32::MAX.
+
+```rust
+fn u32_to_i32(x: u32) -> i32
+```
+
+- **Arguments**: `x` - The u32 value to convert
+- **Returns**: The converted i32 value, with large values clamped to i32::MAX
+- **Safety**: Prevents truncation errors and undefined behavior
+
+#### `f32_to_u8`
+
+Safely converts an f32 to u8, with proper rounding and range clamping.
+
+```rust
+fn f32_to_u8(x: f32) -> u8
+```
+
+- **Arguments**: `x` - The f32 value to convert
+- **Returns**: The converted u8 value, properly rounded and clamped to 0-255
+- **Use Cases**: Converting floating-point color values to byte representation
+- **Special Cases**: NaN becomes 0, values outside range are clamped
+
+#### `i32_to_f32_for_pos`
+
+Converts an i32 to f32, optimized for image positioning calculations.
+
+```rust
+fn i32_to_f32_for_pos(x: i32) -> f32
+```
+
+- **Arguments**: `x` - The i32 value to convert
+- **Returns**: The converted f32 value
+- **Use Cases**: Calculating positions in drawing operations
+- **Precision**: Preserves exact integer values within f32's safe integer range
+
+#### `f32_to_u32`
+
+Safely converts an f32 to u32, with proper rounding and range clamping.
+
+```rust
+fn f32_to_u32(x: f32) -> u32
+```
+
+- **Arguments**: `x` - The f32 value to convert
+- **Returns**: The converted u32 value, properly rounded and clamped
+- **Safety**: Handles NaN, negative values, and overflow cases
+
+### XY Plotting Functions
+
+#### `create_plot`
+
+Creates an image grid plot with optional row and column labels.
+
+```rust
+fn create_plot(config: &PlotConfig) -> Result<()>
+```
+
+- **Arguments**: `config` - Configuration for the plot
+- **Returns**: Result indicating success or failure
+- **Features**:
+  - Arranges images in a grid layout
+  - Adds row and column labels
+  - Automatically scales images to uniform size
+  - Handles text rendering with emoji support
+  - Saves the plot as a PNG image
+- **Layout**: Automatically calculates optimal layout based on image dimensions
+
+#### `PlotConfig`
+
+Configuration struct for creating image grid plots.
+
+```rust
+struct PlotConfig {
+    images: Vec<PathBuf>,          // List of image file paths to include
+    output: PathBuf,               // Output file path
+    rows: u32,                     // Number of rows in the grid
+    row_labels: Vec<String>,       // Optional row labels
+    column_labels: Vec<String>,    // Optional column labels
+    column_label_alignment: LabelAlignment,  // How to align column labels
+    row_label_alignment: LabelAlignment,     // How to align row labels
+    debug_mode: bool,              // Whether to output debug visualization
+    top_padding: u32,              // Space at the top for labels
+    left_padding: u32,             // Space at the left for row labels
+}
+```
+
+- **Defaults**:
+  - `top_padding`: 40 pixels
+  - `left_padding`: 40 pixels
+  - `column_label_alignment`: Center
+  - `row_label_alignment`: Center
+  - `debug_mode`: false
+- **Labels**: Support multiline text using '\n' as separator
+- **Customization**: All fields can be configured to customize the plot
+
+#### `LabelAlignment`
+
+Enum for specifying label alignment in plots.
+
+```rust
+enum LabelAlignment {
+    Start,    // Place labels at the left/top edge
+    Center,   // Center labels (default)
+    End,      // Place labels at the right/bottom edge
+}
+```
+
+- **Use Cases**: Controls positioning of text labels relative to images
+- **Default**: `Center` alignment for both row and column labels
+
+### Layout Engine Functions
+
+#### `Layout`
+
+Represents the complete layout of a plot for rendering.
+
+```rust
+struct Layout {
+    elements: Vec<LayoutElement>,
+    total_width: u32,
+    total_height: u32,
+}
+```
+
+- **Components**:
+  - Collection of layout elements (images, labels, padding)
+  - Total dimensions of the layout
+- **Methods**:
+  - `new(width: u32, height: u32)` - Creates a new empty layout
+  - `add_element(element: LayoutElement)` - Adds an element to the layout
+  - `render_debug()` - Renders a debug visualization of the layout
+
+#### `LayoutElement`
+
+Represents different types of elements in a layout.
+
+```rust
+enum LayoutElement {
+    Image { rect: LayoutRect, path: String },
+    RowLabel { rect: LayoutRect, text: String },
+    ColumnLabel { rect: LayoutRect, text: String },
+    Padding { rect: LayoutRect, description: String },
+}
+```
+
+- **Types**:
+  - `Image` - An image to be displayed in the grid
+  - `RowLabel` - A label for a row of images
+  - `ColumnLabel` - A label for a column of images
+  - `Padding` - Empty space in the layout
+- **Debug Visualization**: Each type is color-coded in debug mode
+
+#### `LayoutRect`
+
+Represents a rectangular region in the layout.
+
+```rust
+struct LayoutRect {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+```
+
+- **Coordinates**: (x,y) represent the top-left corner of the rectangle
+- **Dimensions**: Width and height define the size of the rectangle
+- **Signed Coordinates**: Allows for elements partially outside the visible area
+
+## Examples
+
+### Basic Image Processing
+
+```rust
 use std::path::Path;
+use anyhow::Result;
+use imx::{remove_letterbox, remove_transparency};
 
-async fn process_image() -> Result<()> {
-    // Remove letterboxing with default threshold (0)
-    remove_letterbox(Path::new("path/to/image.jpg")).await?;
+async fn process_images() -> Result<()> {
+    // Remove letterboxing from an image
+    let image_path = Path::new("input/movie_frame.jpg");
+    remove_letterbox(image_path).await?;
+    
+    // Remove transparency from a PNG
+    let png_path = Path::new("input/logo.png");
+    remove_transparency(png_path).await?;
+    
+    Ok(())
+}
+```
 
-    // Remove letterboxing with custom threshold (15 for near-black pixels)
-    remove_letterbox_with_threshold(Path::new("path/to/image.png"), 15).await?;
+### Image Format Conversion
 
-    // Remove transparency (convert transparent pixels to black)
-    remove_transparency(Path::new("path/to/image.png")).await?;
+```rust
+use std::path::{Path, PathBuf};
+use anyhow::Result;
+use imx::{convert_image, convert_images_batch, ImageFormatOptions};
+use image::ImageFormat;
 
+async fn convert_images_example() -> Result<()> {
+    // Convert a single image to WebP with custom quality
+    let input = Path::new("input/photo.jpg");
+    let output = Path::new("output/photo.webp");
+    let options = ImageFormatOptions::webp()
+        .with_quality(90)
+        .with_lossless(false);
+    
+    convert_image(input, output, Some(options)).await?;
+    
+    // Batch convert all JPEGs in a directory to PNG
+    let input_dir = Path::new("input");
+    let output_dir = Path::new("output/png");
+    
+    // Collect input paths
+    let mut input_paths = Vec::new();
+    for entry in std::fs::read_dir(input_dir)? {
+        let path = entry?.path();
+        if path.extension().map_or(false, |ext| ext == "jpg") {
+            input_paths.push(path);
+        }
+    }
+    
+    // Convert all images to PNG with lossless compression
+    let png_options = ImageFormatOptions::png();
+    convert_images_batch(&input_paths, output_dir, ImageFormat::Png, Some(png_options)).await?;
+    
     Ok(())
 }
 ```
 
 ### JXL Processing
 
-The JXL processing functions require careful handling of lifetimes. Here are the recommended patterns:
-
 ```rust
-use imx::jxl::{is_jxl_file, process_jxl_file, convert_jxl_to_png};
+use std::path::Path;
 use anyhow::Result;
-use std::path::{Path, PathBuf};
-use std::future::Future;
-use std::pin::Pin;
+use imx::jxl::{convert_jxl_to_png, process_jxl_file};
 
-// Define a type alias for the future to make the code cleaner
-type BoxFut<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
-
-// Method 1: Using an inline closure with proper lifetime handling
-async fn process_jxl_inline() -> Result<()> {
-    let path = Path::new("path/to/image.jxl");
-    if is_jxl_file(path) {
-        process_jxl_file(path, Some(|p: &Path| -> BoxFut<'_> {
-            Box::pin(async move {
-                // Process the PNG file here
-                Ok(())
-            })
-        })).await?;
-    }
-    Ok(())
-}
-
-// Method 2: Using a separate function with explicit lifetime parameter
-fn process_png<'a>(path: &'a Path) -> BoxFut<'a> {
-    Box::pin(async move {
-        // Process the PNG file here
+async fn process_jxl_example() -> Result<()> {
+    // Simple conversion from JXL to PNG
+    let jxl_path = Path::new("image.jxl");
+    let png_path = Path::new("image.png");
+    
+    convert_jxl_to_png(jxl_path, png_path).await?;
+    
+    // Process JXL file with custom handling
+    process_jxl_file(jxl_path, Some(|temp_png_path| async move {
+        // Remove letterboxing from the temporary PNG
+        imx::remove_letterbox(&temp_png_path).await?;
+        
+        // The modified temp PNG will be used
         Ok(())
-    })
-}
-
-async fn process_jxl_separate_fn() -> Result<()> {
-    let path = Path::new("path/to/image.jxl");
-    if is_jxl_file(path) {
-        process_jxl_file(path, Some(process_png)).await?;
-    }
-    Ok(())
-}
-
-// Direct JXL to PNG conversion
-async fn convert_jxl() -> Result<()> {
-    let input = Path::new("input.jxl");
-    let output = Path::new("output.png");
-    convert_jxl_to_png(input, output).await?;
+    })).await?;
+    
     Ok(())
 }
 ```
 
-### Create Image Grid Plots
+### Creating Image Grid Plots
 
 ```rust
-use imx::{PlotConfig, create_plot, LabelAlignment};
 use std::path::PathBuf;
 use anyhow::Result;
+use imx::xyplot::{PlotConfig, create_plot, LabelAlignment};
 
 fn create_image_grid() -> Result<()> {
+    // Create a 2x3 grid of images
+    let images = vec![
+        PathBuf::from("img1.png"),
+        PathBuf::from("img2.png"),
+        PathBuf::from("img3.png"),
+        PathBuf::from("img4.png"),
+        PathBuf::from("img5.png"),
+        PathBuf::from("img6.png"),
+    ];
+    
     let config = PlotConfig {
-        images: vec![
-            PathBuf::from("image1.jpg"),
-            PathBuf::from("image2.jpg"),
-            PathBuf::from("image3.jpg"),
-            PathBuf::from("image4.jpg"),
-        ],
-        output: PathBuf::from("output.jpg"),
+        images,
+        output: PathBuf::from("grid_output.png"),
         rows: 2,
-        row_labels: vec![
-            "Row 1\nDetails".to_string(),
-            "Row 2\nMore Info".to_string()
-        ],
-        column_labels: vec![
-            "Col 1\nFirst".to_string(),
-            "Col 2\nSecond".to_string()
-        ],
+        row_labels: vec!["Set A".to_string(), "Set B".to_string()],
+        column_labels: vec!["Low".to_string(), "Medium".to_string(), "High".to_string()],
         column_label_alignment: LabelAlignment::Center,
         row_label_alignment: LabelAlignment::Start,
-        top_padding: 60, // More space for multiline column labels
-        left_padding: 80, // More space for multiline row labels
         debug_mode: false,
+        top_padding: 60,  // Extra space for column labels
+        left_padding: 80, // Extra space for row labels
     };
-
+    
     create_plot(&config)?;
     Ok(())
 }
-```
-
-### Label Features
-
-The library supports rich text formatting and alignment options for labels:
-
-1. **Multiline Text**
-   - Use `\n` in label strings for line breaks
-   - Labels automatically adjust spacing
-   - Works for both row and column labels
-   - Example: `"Title\nSubtitle"`
-
-2. **Label Alignment**
-   - Three alignment options:
-     - `Start` (Left/Top)
-     - `Center` (Default)
-     - `End` (Right/Bottom)
-   - Independent control for row and column labels
-
-3. **Adjustable Padding**
-   - `top_padding`: Space for column labels
-   - `left_padding`: Space for row labels
-   - Automatically expands for multiline text
-   - Default values provided
-
-### Examples with Different Alignments
-
-```rust
-// Center-aligned labels (default)
-let config = PlotConfig {
-    column_label_alignment: LabelAlignment::Center,
-    row_label_alignment: LabelAlignment::Center,
-    // ... other fields ...
-};
-
-// Left-aligned row labels, right-aligned column labels
-let config = PlotConfig {
-    column_label_alignment: LabelAlignment::End,
-    row_label_alignment: LabelAlignment::Start,
-    // ... other fields ...
-};
-
-// Multiline labels with custom padding
-let config = PlotConfig {
-    row_labels: vec!["Title\nSubtitle".to_string()],
-    column_labels: vec!["Header\nDetails".to_string()],
-    top_padding: 80,  // Extra space for two-line column labels
-    left_padding: 100, // Extra space for two-line row labels
-    // ... other fields ...
-};
 ```
 
 ### Safe Numeric Conversions
 
 ```rust
-use imx::numeric::{f32_to_i32, i32_to_u32, f32_to_u8, i32_to_f32_for_pos};
+use imx::numeric::{f32_to_i32, f32_to_u8, i32_to_u32};
 
-fn convert_numbers() {
-    // Safe f32 to i32 conversion (handles NaN, infinity, and out-of-range values)
-    let int_val = f32_to_i32(123.45); // Rounds to 123
-    assert_eq!(f32_to_i32(f32::NAN), 0); // NaN becomes 0
+fn numeric_example() {
+    // Convert float to integer with rounding
+    let float_val = 123.7;
+    let int_val = f32_to_i32(float_val);
+    assert_eq!(int_val, 124); // Rounds to nearest
     
-    // Safe i32 to u32 conversion (clamps negative values to 0)
-    let uint_val = i32_to_u32(-10); // Returns 0
-    assert_eq!(i32_to_u32(42), 42); // Positive passes through
+    // Handle NaN values safely
+    let nan_val = f32_to_i32(f32::NAN);
+    assert_eq!(nan_val, 0);   // NaN becomes 0
     
-    // Safe f32 to u8 conversion (clamps to 0..=255)
-    let byte_val = f32_to_u8(300.0); // Returns 255
-    assert_eq!(f32_to_u8(-5.0), 0); // Negative becomes 0
-
-    // Safe i32 to f32 conversion for text positioning
-    let pos = i32_to_f32_for_pos(42); // Converts to 42.0
-}
-```
-
-### Check File Types
-
-```rust
-use imx::{is_image_file, is_jxl_file};
-use std::path::Path;
-
-fn check_files() {
-    // Checks both extension and magic numbers for validation
-    assert!(is_image_file(Path::new("image.jpg")));
-    assert!(is_image_file(Path::new("image.png")));
-    assert!(is_image_file(Path::new("image.webp")));
-    assert!(is_image_file(Path::new("image.jxl")));
+    // Convert to byte values (for image processing)
+    let color_val = 240.8;
+    let byte_val = f32_to_u8(color_val);
+    assert_eq!(byte_val, 241); // Rounds to nearest, clamps to 0-255
     
-    // JXL-specific check
-    assert!(is_jxl_file(Path::new("image.jxl")));
-    assert!(!is_jxl_file(Path::new("image.png")));
-}
-```
-
-## Error Handling
-
-All functions return `Result` types with detailed error context. The library uses `anyhow` for error handling:
-
-```rust
-use imx::remove_letterbox_with_threshold;
-use anyhow::{Context, Result};
-use std::path::Path;
-
-async fn process_with_error_handling(path: &str) -> Result<()> {
-    remove_letterbox_with_threshold(Path::new(path), 10)
-        .await
-        .with_context(|| format!("Failed to process image: {}", path))?;
-    Ok(())
+    // Safe signed to unsigned conversion
+    let signed_val = -5;
+    let unsigned_val = i32_to_u32(signed_val);
+    assert_eq!(unsigned_val, 0); // Negative becomes 0
 }
 ```
 
 ## Best Practices
 
-1. **Path Handling**: Always use `Path` or `PathBuf` types instead of raw strings for file paths.
-2. **JXL Processing**: When using `process_jxl_file`, properly handle lifetimes using either:
-   - A type alias for boxed futures (`BoxFut<'a>`)
-   - Explicit lifetime parameters in separate functions
-3. **Error Handling**: Use `.with_context()` to add meaningful error messages
-4. **Async Functions**: Most image processing functions are async - use them with `.await`
-5. **Type Safety**: Use the provided numeric conversion functions instead of raw casts
-6. **Grid Plotting**: Ensure consistent image dimensions for best results
-7. **Labels**: Unicode and emoji are supported in grid plot labels
+### Path Handling
 
-## Testing
-
-Run the test suite:
-
-```bash
-cargo test
-```
-
-The test suite includes:
-
-- Unit tests for all major functions
-- Integration tests with sample images
-- Error handling tests
-- Format-specific tests (JXL, PNG, etc.)
-- Numeric conversion tests
-- Grid plotting tests
-- Lifetime handling tests
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License.
-
-## Layout Engine and Debugging
-
-The library includes a powerful layout engine for debugging and visualizing image grid layouts. This is particularly useful when developing applications that use the grid plotting functionality.
-
-### Layout System Components
-
-The layout system consists of several key components:
-
-- `LayoutRect` - Represents a rectangular region with position (x, y) and dimensions (width, height)
-- `LayoutElement` - Represents different types of elements in the layout:
-  - `Image` - An image element with its position and source path
-  - `RowLabel` - A row label with its position and text
-  - `ColumnLabel` - A column label with its position and text
-  - `Padding` - A padding region with its position and description
-
-### Debug Visualization
-
-The layout engine can generate debug visualizations that show:
-
-- Images (Light Blue) - Shows where each image is positioned
-- Row Labels (Light Red) - Shows row label positioning and dimensions
-- Column Labels (Light Green) - Shows column label positioning and dimensions
-- Padding Areas (Light Gray) - Shows padding regions for spacing and alignment
-
-Each element is outlined with a dark border for clear separation.
-
-### Using the Layout Engine
+Always use platform-agnostic path handling:
 
 ```rust
-use imx::{PlotConfig, create_plot};
-use std::path::PathBuf;
+use std::path::Path;
 
-fn main() -> anyhow::Result<()> {
-    let config = PlotConfig {
-        images: vec![
-            PathBuf::from("image1.jpg"),
-            PathBuf::from("image2.jpg"),
-        ],
-        output: PathBuf::from("output.jpg"),
-        rows: 1,
-        row_labels: vec!["Row 1".to_string()],
-        column_labels: vec!["Col 1".to_string(), "Col 2".to_string()],
-        debug_mode: true, // Enable debug visualization
-    };
+// Good
+let img_path = Path::new("images").join("photo.jpg");
 
-    create_plot(&config)?;
-    // This will create:
-    // - output.jpg (the actual plot)
-    // - output_debug.jpg (the layout visualization)
-    Ok(())
-}
+// Avoid platform-specific separators
+// let img_path = "images/photo.jpg"; // Works on Unix but not Windows
 ```
 
-### Layout Algorithm
+### Using Async Functions
 
-The layout engine follows these steps:
+Ensure your runtime is configured for async functions:
 
-1. **Canvas Setup**
-   - Calculates total dimensions based on images and labels
-   - Creates padding areas for labels if needed
+```rust
+use tokio::runtime::Runtime;
 
-2. **Element Placement**
-   - Places column labels at the top with proper alignment
-   - Positions row labels on the left side
-   - Centers images within their grid cells
-   - Adds padding between elements for spacing
+// Setup a basic tokio runtime
+let rt = Runtime::new().unwrap();
+rt.block_on(async {
+    // Call async imx functions here
+    imx::remove_letterbox(Path::new("image.jpg")).await.unwrap();
+});
+```
 
-3. **Debug Rendering**
-   - Creates a color-coded visualization
-   - Shows exact positions and dimensions of all elements
-   - Highlights padding and alignment areas
+## Layout Algorithm
 
-### Benefits of Layout Debugging
+The library uses a sophisticated layout algorithm for grid plots:
 
-- Visualize spacing and alignment issues
-- Debug label positioning problems
-- Understand how the grid layout is calculated
-- Verify padding and margins are correct
-- Ensure images are properly centered
+1. Images are arranged in a grid with specified number of rows
+2. Columns are calculated automatically based on image count and rows
+3. All images are scaled to maintain uniform size in the grid
+4. Row labels are placed on the left side, aligned to the row
+5. Column labels are placed above each column
+6. Padding is added around all elements for visual spacing
 
-### Layout Features
-
-- **Column Label Alignment**: Control how column labels are positioned relative to their images:
-  - `Left`: Align labels with the left edge of the image
-  - `Center`: Center labels over the image (default)
-  - `Right`: Align labels with the right edge of the image
-
-- **Adjustable Top Padding**: Control the vertical space reserved for labels:
-  - Default is 40 pixels
-  - Can be increased for larger labels or decreased for compact layouts
-  - Automatically applied only when labels are present
+For debugging layouts, set `debug_mode: true` in your `PlotConfig` to see a color-coded visualization of the calculated layout.
