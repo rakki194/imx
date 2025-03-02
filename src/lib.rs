@@ -177,6 +177,9 @@ pub mod xyplot;
 /// Layout module for debugging and visualizing image grid layouts
 pub mod layout;
 
+/// Image format conversion module with support for various formats
+pub mod formats;
+
 // Re-export commonly used types and functions
 pub use image_processing::{
     get_image_dimensions, is_image_file, process_image, remove_letterbox,
@@ -185,6 +188,7 @@ pub use image_processing::{
 pub use jxl::{convert_jxl_to_png, is_jxl_file, process_jxl_file};
 pub use layout::{Layout, LayoutElement, LayoutRect};
 pub use xyplot::{create_plot, PlotConfig, LabelAlignment};
+pub use formats::{convert_image, convert_images_batch, ImageFormatOptions};
 
 #[cfg(test)]
 mod tests {
