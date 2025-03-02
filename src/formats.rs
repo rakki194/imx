@@ -125,7 +125,7 @@ impl ImageFormatOptions {
 #[must_use]
 pub fn detect_format_from_extension(path: &Path) -> Option<ImageFormat> {
     path.extension()
-        .and_then(|ext| ImageFormat::from_extension(ext))
+        .and_then(ImageFormat::from_extension)
 }
 
 /// Convert an image from one format to another.
@@ -226,7 +226,7 @@ pub async fn convert_image(
         _ => {
             // Fallback for other formats
             img.save(output_path)
-                .with_context(|| format!("Failed to save image as {:?}", output_format))?;
+                .with_context(|| format!("Failed to save image as {output_format:?}"))?;
         }
     }
 

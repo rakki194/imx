@@ -54,7 +54,7 @@ fn test_emoji_ranges() {
     for (emoji, description) in test_cases {
         let (glyph_id, font) = fonts.glyph_id(emoji);
         assert!(font.glyph_raster_image2(glyph_id, u16::MAX).is_some(),
-               "Should find color glyph for {} ({})", emoji, description);
+               "Should find color glyph for {emoji} ({description})");
     }
 }
 
@@ -71,13 +71,13 @@ fn test_mixed_text_glyph_selection() {
             '👋' | '🌍' => {
                 // These should be handled by the emoji font
                 assert!(font.glyph_raster_image2(glyph_id, u16::MAX).is_some(),
-                       "Emoji {} should have color glyph", c);
+                       "Emoji {c} should have color glyph");
             }
             _ => {
                 // Regular characters should have outlines in the main font
                 if !c.is_whitespace() {
                     assert!(font.outline(glyph_id).is_some(),
-                           "Character {} should have outline", c);
+                           "Character {c} should have outline");
                 }
             }
         }
@@ -100,7 +100,7 @@ fn test_fallback_behavior() {
     for &c in &fallback_chars {
         let (glyph_id, font) = fonts.glyph_id(c);
         assert!(font.outline(glyph_id).is_some(),
-               "Character {} should have outline in fallback font", c);
+               "Character {c} should have outline in fallback font");
     }
 }
 
@@ -122,15 +122,15 @@ fn test_font_metrics() {
         // Check that we get reasonable advance metrics
         let advance = scaled_font.h_advance(glyph_id);
         assert!(advance > 0.0, 
-                "{} ({}) should have positive advance width", c, description);
+                "{c} ({description}) should have positive advance width");
         
         // For emoji, verify we get color glyphs at reasonable sizes
         if c.is_ascii_alphabetic() {
             assert!(font.outline(glyph_id).is_some(),
-                   "{} should have outline", description);
+                   "{description} should have outline");
         } else {
             assert!(font.glyph_raster_image2(glyph_id, 32).is_some(),
-                   "{} should have color glyph at size 32", description);
+                   "{description} should have color glyph at size 32");
         }
     }
 } 

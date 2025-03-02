@@ -445,8 +445,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     });
     assert!(
         found_text,
-        "Column 0 (Tall) label not found near expected position ({}, 0)",
-        expected_x
+        "Column 0 (Tall) label not found near expected position ({expected_x}, 0)"
     );
 
     // Test second column (Wide image - 200px wide)
@@ -466,8 +465,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
     });
     assert!(
         found_text,
-        "Column 1 (Wide) label not found near expected position ({}, 0)",
-        expected_x
+        "Column 1 (Wide) label not found near expected position ({expected_x}, 0)"
     );
 
     // For each column, check a region that should definitely be empty
@@ -480,7 +478,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
 
         // Calculate label position (centered over image)
         let label_width = if col == 0 { 50 } else { 80 }; // Width for "Tall" vs "Wide"
-        let label_start = image_start + ((img_width as i32 - label_width) / 2);
+        let label_start = image_start + ((img_width - label_width) / 2);
 
         // Check a small region after the expected label position
         let check_start = label_start + label_width + 10; // Small padding after expected label end
@@ -503,9 +501,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
         if check_start + check_width as i32 <= image_center {
             assert!(
                 !has_black_pixels(check_start.try_into().unwrap(), 0, check_width, 40),
-                "Found unexpected text in cell {} between label and image center at position ({}, 0)",
-                col,
-                check_start
+                "Found unexpected text in cell {col} between label and image center at position ({check_start}, 0)"
             );
         }
     }
@@ -746,8 +742,7 @@ fn test_column_label_alignments_comprehensive() -> Result<()> {
 
         assert!(
             found_text,
-            "Text not found at expected position for {:?} alignment",
-            alignment
+            "Text not found at expected position for {alignment:?} alignment"
         );
     }
 
@@ -809,15 +804,13 @@ fn test_top_padding_variations() -> Result<()> {
         // Check that text appears in the top padding area
         assert!(
             has_black_pixels(0, padding),
-            "No text found in top padding area (height {})",
-            padding
+            "No text found in top padding area (height {padding})"
         );
 
         // Check that no text appears below the padding area
         assert!(
             !has_black_pixels(padding, 10),
-            "Unexpected text found below padding area (height {})",
-            padding
+            "Unexpected text found below padding area (height {padding})"
         );
     }
 
@@ -854,8 +847,7 @@ fn test_zero_top_padding() -> Result<()> {
     // With no padding and no labels, height should be exactly image height
     assert_eq!(
         height, 100,
-        "Output height {} should match input image height 100 with zero padding",
-        height
+        "Output height {height} should match input image height 100 with zero padding"
     );
 
     Ok(())
@@ -1070,8 +1062,7 @@ fn test_row_label_alignments() -> Result<()> {
 
         assert!(
             found_text,
-            "Text not found at expected position for {:?} alignment",
-            alignment
+            "Text not found at expected position for {alignment:?} alignment"
         );
     }
 

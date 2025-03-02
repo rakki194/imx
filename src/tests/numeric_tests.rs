@@ -141,8 +141,8 @@ fn test_f32_to_u32() {
     // See test_f32_to_u32_max_precision_limitation for details
 }
 
-/// Known limitation: f32 cannot precisely represent u32::MAX
-/// This test verifies that we handle this case gracefully by returning u32::MAX
+/// Known limitation: f32 cannot precisely represent `u32::MAX`
+/// This test verifies that we handle this case gracefully by returning `u32::MAX`
 #[test]
 fn test_f32_to_u32_max_precision_limitation() {
     // When converting u32::MAX to f32 and back, we expect to get u32::MAX
