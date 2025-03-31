@@ -34,6 +34,7 @@
 //!         debug_mode: false,
 //!         top_padding: 40,
 //!         left_padding: 40,
+//!         font_size: Some(40.0),
 //!     };
 //!
 //!     create_plot(&config)?;
@@ -43,19 +44,22 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
+use crate::layout::{Layout, LayoutElement, LayoutRect};
 use crate::numeric::{f32_to_i32, f32_to_u32, i32_to_u32, u32_to_i32};
-use fontdue::{Font, FontSettings};
 use anyhow::{Context, Result};
-use image::{Rgb, RgbImage, GenericImageView};
+use fontdue::{Font, FontSettings};
+use image::{GenericImageView, Rgb, RgbImage};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use crate::layout::{Layout, LayoutElement, LayoutRect};
 
 /// Default space reserved at the top of the plot for labels and padding
 pub const DEFAULT_TOP_PADDING: u32 = 40;
 
 /// Default space reserved at the left of the plot for row labels
 pub const DEFAULT_LEFT_PADDING: u32 = 40;
+
+/// Default font size for labels
+pub const DEFAULT_FONT_SIZE: f32 = 40.0;
 
 /// A pair of fonts for rendering text and emoji characters.
 ///
@@ -105,11 +109,7 @@ impl<'a> FontPair<'a> {
             _ => false,
         };
 
-        if is_emoji {
-            self.emoji
-        } else {
-            self.main
-        }
+        if is_emoji { self.emoji } else { self.main }
     }
 }
 
@@ -137,37 +137,37 @@ fn draw_text(
 ) {
     // Set up font rendering parameters
     let px_scale = scale;
-    
+
     // Prepare to collect glyphs
     let mut cursor_x = x as f32;
     let cursor_y = y as f32;
     let mut glyphs = Vec::new();
-    
+
     // First pass: calculate positions and collect glyphs
     for c in text.chars() {
         let font = fonts.get_font_for_char(c);
         // Get metrics and bitmap for this character
         let (metrics, bitmap) = font.rasterize(c, px_scale);
-        
+
         // Skip whitespace
         if c.is_whitespace() {
             cursor_x += metrics.advance_width;
             continue;
         }
-        
+
         // Store glyph info for rendering
         glyphs.push((c, font, metrics, bitmap, cursor_x, cursor_y));
-        
+
         // Advance cursor
         cursor_x += metrics.advance_width;
     }
-    
+
     // Second pass: render glyphs
     for (_c, _font, metrics, bitmap, gx, gy) in glyphs {
         // Calculate pixel positions
         let x_pos = gx as i32 + metrics.xmin;
         let y_pos = gy as i32 - metrics.ymin - metrics.height as i32;
-        
+
         // Draw the glyph
         for y in 0..metrics.height {
             for x in 0..metrics.width {
@@ -175,18 +175,23 @@ fn draw_text(
                 if glyph_pixel > 0 {
                     let canvas_x = x_pos + x as i32;
                     let canvas_y = y_pos + y as i32;
-                    
+
                     // Check if pixel is within canvas bounds
-                    if canvas_x >= 0 && canvas_y >= 0 && 
-                       canvas_x < canvas.width() as i32 && 
-                       canvas_y < canvas.height() as i32 {
+                    if canvas_x >= 0
+                        && canvas_y >= 0
+                        && canvas_x < canvas.width() as i32
+                        && canvas_y < canvas.height() as i32
+                    {
                         // Blend glyph with canvas based on alpha
                         let alpha = glyph_pixel as f32 / 255.0;
                         let existing_pixel = canvas.get_pixel(canvas_x as u32, canvas_y as u32);
                         let blended = Rgb([
-                            ((1.0 - alpha) * existing_pixel[0] as f32 + alpha * color[0] as f32) as u8,
-                            ((1.0 - alpha) * existing_pixel[1] as f32 + alpha * color[1] as f32) as u8,
-                            ((1.0 - alpha) * existing_pixel[2] as f32 + alpha * color[2] as f32) as u8,
+                            ((1.0 - alpha) * existing_pixel[0] as f32 + alpha * color[0] as f32)
+                                as u8,
+                            ((1.0 - alpha) * existing_pixel[1] as f32 + alpha * color[1] as f32)
+                                as u8,
+                            ((1.0 - alpha) * existing_pixel[2] as f32 + alpha * color[2] as f32)
+                                as u8,
                         ]);
                         canvas.put_pixel(canvas_x as u32, canvas_y as u32, blended);
                     }
@@ -235,6 +240,7 @@ impl Default for LabelAlignment {
 ///     debug_mode: false,
 ///     top_padding: 40,
 ///     left_padding: 40,
+///     font_size: Some(40.0),
 /// };
 /// ```
 #[derive(Debug)]
@@ -261,6 +267,8 @@ pub struct PlotConfig {
     pub top_padding: u32,
     /// Space reserved at the left of the plot for labels and padding
     pub left_padding: u32,
+    /// Optional font size for labels
+    pub font_size: Option<f32>,
 }
 
 impl Default for PlotConfig {
@@ -276,6 +284,7 @@ impl Default for PlotConfig {
             debug_mode: false,
             top_padding: DEFAULT_TOP_PADDING,
             left_padding: DEFAULT_LEFT_PADDING,
+            font_size: None,
         }
     }
 }
@@ -327,10 +336,12 @@ pub(crate) fn load_fonts() -> FontPair<'static> {
     static EMOJI_FONT: OnceLock<Font> = OnceLock::new();
 
     // Initialize fonts if not already initialized
-    let main_font = MAIN_FONT
-        .get_or_init(|| Font::from_bytes(MAIN_FONT_DATA, FontSettings::default()).expect("Failed to load main font"));
+    let main_font = MAIN_FONT.get_or_init(|| {
+        Font::from_bytes(MAIN_FONT_DATA, FontSettings::default()).expect("Failed to load main font")
+    });
     let emoji_font = EMOJI_FONT.get_or_init(|| {
-        Font::from_bytes(EMOJI_FONT_DATA, FontSettings::default()).expect("Failed to load emoji font")
+        Font::from_bytes(EMOJI_FONT_DATA, FontSettings::default())
+            .expect("Failed to load emoji font")
     });
 
     FontPair {
@@ -405,29 +416,29 @@ fn draw_multiline_text(
 }
 
 #[allow(clippy::too_many_lines)]
-fn calculate_layout(
-    config: &PlotConfig,
-    max_width: u32,
-    max_height: u32,
-    cols: u32,
-) -> Layout {
+fn calculate_layout(config: &PlotConfig, max_width: u32, max_height: u32, cols: u32) -> Layout {
     let has_labels = !config.row_labels.is_empty() || !config.column_labels.is_empty();
     let fonts = load_fonts();
+    let font_size = config.font_size.unwrap_or(DEFAULT_FONT_SIZE);
 
     // Calculate maximum dimensions for labels
     let (max_row_label_width, _max_row_label_height) = if config.row_labels.is_empty() {
         (0.0f32, 0)
     } else {
-        config.row_labels.iter()
-            .map(|label| calculate_label_dimensions(label, fonts, 24.0))
+        config
+            .row_labels
+            .iter()
+            .map(|label| calculate_label_dimensions(label, fonts, font_size))
             .fold((0.0f32, 0), |(w, h), (lw, lh)| (w.max(lw), h.max(lh)))
     };
 
     let (_max_col_label_width, max_col_label_height) = if config.column_labels.is_empty() {
         (0.0f32, 0)
     } else {
-        config.column_labels.iter()
-            .map(|label| calculate_label_dimensions(label, fonts, 24.0))
+        config
+            .column_labels
+            .iter()
+            .map(|label| calculate_label_dimensions(label, fonts, font_size))
             .fold((0.0f32, 0), |(w, h), (lw, lh)| (w.max(lw), h.max(lh)))
     };
 
@@ -435,7 +446,9 @@ fn calculate_layout(
     let left_padding = if config.row_labels.is_empty() {
         0
     } else {
-        config.left_padding.max(i32_to_u32(f32_to_i32(max_row_label_width)) + 20)
+        config
+            .left_padding
+            .max(i32_to_u32(f32_to_i32(max_row_label_width)) + 20)
     };
 
     let top_padding = if config.column_labels.is_empty() {
@@ -475,28 +488,25 @@ fn calculate_layout(
         });
     }
 
-    // Add column labels
+    // Add column labels - one per column, not per image
     if !config.column_labels.is_empty() {
-        for (col, (label, img_path)) in config.column_labels.iter().zip(config.images.iter()).enumerate() {
-            let img = image::open(img_path).unwrap().to_rgb8();
-            let img_width = img.width();
-            let cell_start = u32::try_from(col).unwrap_or(0) * max_width + left_padding;
-            let x_offset = (max_width - img_width) / 2;
-            
-            let (label_width, label_height) = calculate_label_dimensions(label, fonts, 24.0);
-            let img_width_i32 = u32_to_i32(img_width);
+        for col in 0..cols.min(config.column_labels.len() as u32) {
+            let label = &config.column_labels[col as usize];
+            let cell_start = col * max_width + left_padding;
+
+            let (label_width, label_height) = calculate_label_dimensions(label, fonts, font_size);
             let label_width_i32 = f32_to_i32(label_width);
-            
+
             let label_x = match config.column_label_alignment {
-                LabelAlignment::Start => u32_to_i32(cell_start) + u32_to_i32(x_offset),
-                LabelAlignment::Center => u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
-                    (img_width_i32 - label_width_i32) / 2,
-                LabelAlignment::End => u32_to_i32(cell_start) + u32_to_i32(x_offset) + 
-                    img_width_i32 - label_width_i32,
+                LabelAlignment::Start => u32_to_i32(cell_start),
+                LabelAlignment::Center => {
+                    u32_to_i32(cell_start + max_width / 2) - label_width_i32 / 2
+                }
+                LabelAlignment::End => u32_to_i32(cell_start + max_width) - label_width_i32,
             };
-            
-            // Ensure label is vertically centered in the top padding area with proper spacing
-            let label_y = u32_to_i32(top_padding / 4);
+
+            // Ensure label is properly positioned in the top padding area
+            let label_y = u32_to_i32(top_padding / 2) - u32_to_i32(label_height / 2);
             layout.add_element(LayoutElement::ColumnLabel {
                 rect: LayoutRect {
                     x: label_x,
@@ -519,7 +529,8 @@ fn calculate_layout(
         let y_start = row * row_height + top_padding;
 
         if let Some(row_label) = config.row_labels.get(row as usize) {
-            let (label_width, label_height) = calculate_label_dimensions(row_label, fonts, 24.0);
+            let (label_width, label_height) =
+                calculate_label_dimensions(row_label, fonts, font_size);
             let available_width = left_padding - 20;
             let available_width_i32 = u32_to_i32(available_width);
             let label_width_i32 = f32_to_i32(label_width);
@@ -533,7 +544,7 @@ fn calculate_layout(
             layout.add_element(LayoutElement::RowLabel {
                 rect: LayoutRect {
                     x: label_x,
-                    y: u32_to_i32(y_start + max_height / 2 - label_height / 2),
+                    y: u32_to_i32(y_start + max_height / 2) - u32_to_i32(label_height / 2),
                     width: i32_to_u32(label_width_i32),
                     height: label_height,
                 },
@@ -605,9 +616,15 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         let debug_output = config.output.with_file_name(format!(
             "{}_debug{}",
             config.output.file_stem().unwrap().to_string_lossy(),
-            config.output.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default()
+            config
+                .output
+                .extension()
+                .map(|e| format!(".{}", e.to_string_lossy()))
+                .unwrap_or_default()
         ));
-        layout.render_debug().save(&debug_output)
+        layout
+            .render_debug()
+            .save(&debug_output)
             .with_context(|| format!("Failed to save debug layout: {debug_output:?}"))?;
     }
 
@@ -617,6 +634,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
     }
 
     let fonts = load_fonts();
+    let font_size = config.font_size.unwrap_or(DEFAULT_FONT_SIZE);
 
     // Draw the actual plot using the layout information
     for element in layout.elements {
@@ -637,7 +655,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
                     &text,
                     rect.x,
                     rect.y,
-                    24.0,
+                    font_size,
                     fonts,
                     Rgb([0, 0, 0]),
                 );
@@ -646,7 +664,8 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         }
     }
 
-    canvas.save(&config.output)
+    canvas
+        .save(&config.output)
         .with_context(|| format!("Failed to save output image: {:?}", config.output))?;
 
     Ok(())

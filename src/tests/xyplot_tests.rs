@@ -40,6 +40,7 @@ fn test_basic_plot() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -68,6 +69,7 @@ fn test_with_labels() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -96,6 +98,7 @@ fn test_with_row_and_column_labels() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -124,6 +127,7 @@ fn test_different_image_sizes() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -150,6 +154,7 @@ fn test_single_image() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -189,6 +194,7 @@ fn test_many_images() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -216,6 +222,7 @@ fn test_mismatched_row_labels() {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config).unwrap();
@@ -241,6 +248,7 @@ fn test_mismatched_column_labels() {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config).unwrap();
@@ -267,6 +275,7 @@ fn test_empty_labels() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -296,6 +305,7 @@ fn test_dynamic_padding() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -332,6 +342,7 @@ fn test_different_size_images() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -369,6 +380,7 @@ fn test_label_alignment() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -401,6 +413,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
         debug_mode: false,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -531,6 +544,7 @@ fn test_column_label_alignments() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
     create_plot(&config)?;
 
@@ -584,6 +598,7 @@ fn test_column_label_alignments() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
     create_plot(&config)?;
 
@@ -610,7 +625,7 @@ fn test_column_label_alignments() -> Result<()> {
 
     // Search in a wider area for the first column
     let mut found_first = false;
-    for x_offset in -20..=20 {
+    for x_offset in -20_i32..=20_i32 {
         let search_x = first_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_first = true;
@@ -622,7 +637,7 @@ fn test_column_label_alignments() -> Result<()> {
 
     // Search in a wider area for the second column
     let mut found_second = false;
-    for x_offset in -20..=20 {
+    for x_offset in -20_i32..=20_i32 {
         let search_x = second_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_second = true;
@@ -657,6 +672,7 @@ fn test_debug_mode() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -701,6 +717,7 @@ fn test_column_label_alignments_comprehensive() -> Result<()> {
             debug_mode: true,
             top_padding: DEFAULT_TOP_PADDING,
             left_padding: DEFAULT_LEFT_PADDING,
+            font_size: None,
         };
 
         create_plot(&config)?;
@@ -732,7 +749,7 @@ fn test_column_label_alignments_comprehensive() -> Result<()> {
 
         // Search for text with some tolerance
         let mut found_text = false;
-        for x_offset in -10..=10 {
+        for x_offset in -10_i32..=10_i32 {
             let search_x = i32_to_u32((expected_x + x_offset).max(0));
             if has_black_pixels(search_x, 0, search_width, DEFAULT_TOP_PADDING) {
                 found_text = true;
@@ -770,6 +787,7 @@ fn test_top_padding_variations() -> Result<()> {
             debug_mode: true,
             top_padding: padding,
             left_padding: DEFAULT_LEFT_PADDING,
+            font_size: None,
         };
 
         create_plot(&config)?;
@@ -836,6 +854,7 @@ fn test_zero_top_padding() -> Result<()> {
         debug_mode: true,
         top_padding: 0,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -874,6 +893,7 @@ fn test_multiline_column_labels() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -959,6 +979,7 @@ fn test_multiline_row_labels() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;
@@ -1023,6 +1044,7 @@ fn test_row_label_alignments() -> Result<()> {
             debug_mode: true,
             top_padding: DEFAULT_TOP_PADDING,
             left_padding: DEFAULT_LEFT_PADDING,
+            font_size: None,
         };
 
         create_plot(&config)?;
@@ -1052,7 +1074,7 @@ fn test_row_label_alignments() -> Result<()> {
         };
 
         let mut found_text = false;
-        for x_offset in -5..=5 {
+        for x_offset in -5_i32..=5_i32 {
             let search_x = i32_to_u32((start_x + x_offset).max(0));
             if has_black_pixels(search_x, 0, search_width, 100) {
                 found_text = true;
@@ -1088,6 +1110,7 @@ fn test_dynamic_padding_with_multiline() -> Result<()> {
         debug_mode: true,
         top_padding: DEFAULT_TOP_PADDING,
         left_padding: DEFAULT_LEFT_PADDING,
+        font_size: None,
     };
 
     create_plot(&config)?;

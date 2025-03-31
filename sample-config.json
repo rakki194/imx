@@ -1,0 +1,23 @@
+{
+  "images": [
+    "path/to/your/image1.png",
+    "path/to/your/image2.png",
+    "path/to/your/image3.png",
+    "path/to/your/image4.png",
+    "path/to/your/image5.png",
+    "path/to/your/image6.png",
+    "path/to/your/image7.png",
+    "path/to/your/image8.png",
+    "path/to/your/image9.png"
+  ],
+  "output": "output.png",
+  "rows": 3,
+  "row_labels": ["Step 1", "Step 2", "Step 3"],
+  "column_labels": ["Low", "Medium", "High"],
+  "column_label_alignment": "center",
+  "row_label_alignment": "center",
+  "top_padding": 80,
+  "left_padding": 100,
+  "font_size": 36.0,
+  "debug_mode": true
+} 

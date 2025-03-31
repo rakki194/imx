@@ -42,6 +42,7 @@
 //!         debug_mode: false,
 //!         top_padding: 40,
 //!         left_padding: 40,
+//!         font_size: None,
 //!     };
 //!     create_plot(&config)?;
 //!     
@@ -138,6 +139,7 @@ pub mod numeric;
 ///         debug_mode: false,
 ///         top_padding: 40,
 ///         left_padding: 40,
+///         font_size: None,
 ///     };
 ///     create_plot(&config)?;
 ///     
@@ -167,6 +169,7 @@ pub mod numeric;
 ///         debug_mode: false,
 ///         top_padding: 40,
 ///         left_padding: 40,
+///         font_size: None,
 ///     };
 ///     create_plot(&config)?;
 ///     Ok(())
@@ -181,20 +184,20 @@ pub mod layout;
 pub mod formats;
 
 // Re-export commonly used types and functions
+pub use formats::{ImageFormatOptions, convert_image, convert_images_batch};
 pub use image_processing::{
     get_image_dimensions, is_image_file, process_image, remove_letterbox,
     remove_letterbox_with_threshold, remove_transparency,
 };
 pub use jxl::{convert_jxl_to_png, is_jxl_file, process_jxl_file};
 pub use layout::{Layout, LayoutElement, LayoutRect};
-pub use xyplot::{create_plot, PlotConfig, LabelAlignment};
-pub use formats::{convert_image, convert_images_batch, ImageFormatOptions};
+pub use xyplot::{LabelAlignment, PlotConfig, create_plot};
 
 #[cfg(test)]
 mod tests {
+    mod font_tests;
     mod image_processing_tests;
     mod jxl_tests;
     mod numeric_tests;
     mod xyplot_tests;
-    mod font_tests;
 }
