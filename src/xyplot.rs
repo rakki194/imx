@@ -121,16 +121,16 @@ impl<'a> FontPair<'a> {
 ///
 /// * `canvas` - The image to draw to
 /// * `text` - The text to draw
-/// * `x` - The x position of the text
-/// * `y` - The y position of the text (baseline)
+/// * `pos_x` - The x position of the text
+/// * `pos_y` - The y position of the text (baseline)
 /// * `scale` - The font size in pixels
 /// * `fonts` - The font pair to use
 /// * `color` - The text color
 fn draw_text(
     canvas: &mut RgbImage,
     text: &str,
-    x: i32,
-    y: i32,
+    pos_x: i32,
+    pos_y: i32,
     scale: f32,
     fonts: FontPair,
     color: Rgb<u8>,
@@ -139,8 +139,10 @@ fn draw_text(
     let px_scale = scale;
 
     // Prepare to collect glyphs
-    let mut cursor_x = x as f32;
-    let cursor_y = y as f32;
+    #[allow(clippy::cast_precision_loss)]
+    let mut cursor_x = pos_x as f32;
+    #[allow(clippy::cast_precision_loss)]
+    let cursor_y = pos_y as f32;
     let mut glyphs = Vec::new();
 
     // First pass: calculate positions and collect glyphs
@@ -165,35 +167,62 @@ fn draw_text(
     // Second pass: render glyphs
     for (_c, _font, metrics, bitmap, gx, gy) in glyphs {
         // Calculate pixel positions
+        #[allow(clippy::cast_possible_truncation)]
         let x_pos = gx as i32 + metrics.xmin;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let y_pos = gy as i32 - metrics.ymin - metrics.height as i32;
 
         // Draw the glyph
-        for y in 0..metrics.height {
-            for x in 0..metrics.width {
-                let glyph_pixel = bitmap[y * metrics.width + x];
+        for bitmap_y in 0..metrics.height {
+            for bitmap_x in 0..metrics.width {
+                let glyph_pixel = bitmap[bitmap_y * metrics.width + bitmap_x];
                 if glyph_pixel > 0 {
-                    let canvas_x = x_pos + x as i32;
-                    let canvas_y = y_pos + y as i32;
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+                    let canvas_x = x_pos + bitmap_x as i32;
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+                    let canvas_y = y_pos + bitmap_y as i32;
 
                     // Check if pixel is within canvas bounds
                     if canvas_x >= 0
                         && canvas_y >= 0
-                        && canvas_x < canvas.width() as i32
-                        && canvas_y < canvas.height() as i32
+                        && {
+                            #[allow(clippy::cast_possible_wrap)]
+                            let comp = canvas_x < canvas.width() as i32;
+                            comp
+                        }
+                        && {
+                            #[allow(clippy::cast_possible_wrap)]
+                            let comp = canvas_y < canvas.height() as i32;
+                            comp
+                        }
                     {
                         // Blend glyph with canvas based on alpha
                         let alpha = f32::from(glyph_pixel) / 255.0;
-                        let existing_pixel = canvas.get_pixel(canvas_x as u32, canvas_y as u32);
-                        let blended = Rgb([
-                            ((1.0 - alpha) * f32::from(existing_pixel[0]) + alpha * f32::from(color[0]))
-                                as u8,
-                            ((1.0 - alpha) * f32::from(existing_pixel[1]) + alpha * f32::from(color[1]))
-                                as u8,
-                            ((1.0 - alpha) * f32::from(existing_pixel[2]) + alpha * f32::from(color[2]))
-                                as u8,
-                        ]);
-                        canvas.put_pixel(canvas_x as u32, canvas_y as u32, blended);
+
+                        #[allow(clippy::cast_sign_loss)]
+                        let pixel_x = canvas_x as u32;
+                        #[allow(clippy::cast_sign_loss)]
+                        let pixel_y = canvas_y as u32;
+                        let existing_pixel = canvas.get_pixel(pixel_x, pixel_y);
+
+                        let blended = {
+                            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                            let red = ((1.0 - alpha) * f32::from(existing_pixel[0])
+                                + alpha * f32::from(color[0]))
+                                as u8;
+                            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                            let green = ((1.0 - alpha) * f32::from(existing_pixel[1])
+                                + alpha * f32::from(color[1]))
+                                as u8;
+                            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                            let blue = ((1.0 - alpha) * f32::from(existing_pixel[2])
+                                + alpha * f32::from(color[2]))
+                                as u8;
+
+                            Rgb([red, green, blue])
+                        };
+
+                        canvas.put_pixel(pixel_x, pixel_y, blended);
                     }
                 }
             }
@@ -386,6 +415,7 @@ fn calculate_label_dimensions(label: &str, fonts: FontPair, scale: f32) -> (f32,
     let lines: Vec<&str> = label.split('\n').collect();
     let mut max_width: f32 = 0.0;
     let line_height = scale * 1.2;
+    #[allow(clippy::cast_precision_loss)]
     let total_height = f32_to_u32(line_height * lines.len() as f32);
 
     for line in lines {
@@ -400,8 +430,8 @@ fn calculate_label_dimensions(label: &str, fonts: FontPair, scale: f32) -> (f32,
 fn draw_multiline_text(
     canvas: &mut RgbImage,
     text: &str,
-    x: i32,
-    y: i32,
+    pos_x: i32,
+    pos_y: i32,
     scale: f32,
     fonts: FontPair,
     color: Rgb<u8>,
@@ -410,8 +440,9 @@ fn draw_multiline_text(
     let line_height = scale * 1.2;
 
     for (i, line) in lines.iter().enumerate() {
-        let y_offset = y + (i as f32 * line_height) as i32;
-        draw_text(canvas, line, x, y_offset, scale, fonts, color);
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+        let y_offset = pos_y + (i as f32 * line_height) as i32;
+        draw_text(canvas, line, pos_x, y_offset, scale, fonts, color);
     }
 }
 
@@ -490,6 +521,7 @@ fn calculate_layout(config: &PlotConfig, max_width: u32, max_height: u32, cols: 
 
     // Add column labels - one per column, not per image
     if !config.column_labels.is_empty() {
+        #[allow(clippy::cast_possible_truncation)]
         for col in 0..cols.min(config.column_labels.len() as u32) {
             let label = &config.column_labels[col as usize];
             let cell_start = col * max_width + left_padding;
@@ -625,7 +657,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
         layout
             .render_debug()
             .save(&debug_output)
-            .with_context(|| format!("Failed to save debug layout: {debug_output:?}"))?;
+            .with_context(|| format!("Failed to save debug layout: {}", debug_output.display()))?;
     }
 
     let mut canvas = RgbImage::new(layout.total_width, layout.total_height);
@@ -666,7 +698,7 @@ pub fn create_plot(config: &PlotConfig) -> Result<()> {
 
     canvas
         .save(&config.output)
-        .with_context(|| format!("Failed to save output image: {:?}", config.output))?;
+        .with_context(|| format!("Failed to save output image: {}", config.output.display()))?;
 
     Ok(())
 }

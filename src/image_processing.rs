@@ -175,7 +175,7 @@ pub async fn remove_transparency(path: &Path) -> Result<()> {
         return Ok(());
     }
 
-    info!("Processing image: {path:?}");
+    info!("Processing image: {}", path.display());
 
     let img = image::open(path).context("Failed to open image")?;
     let (width, height) = img.dimensions();
@@ -192,7 +192,7 @@ pub async fn remove_transparency(path: &Path) -> Result<()> {
     }
 
     new_image.save(path).context("Failed to save image")?;
-    info!("Processed and saved: {path:?}");
+    info!("Processed and saved: {}", path.display());
 
     Ok(())
 }
