@@ -384,6 +384,7 @@ struct PlotConfig {
     debug_mode: bool,              // Whether to output debug visualization
     top_padding: u32,              // Space at the top for labels
     left_padding: u32,             // Space at the left for row labels
+    font_size: Option<f32>,        // Optional custom font size for labels
 }
 ```
 
@@ -393,6 +394,7 @@ struct PlotConfig {
   - `column_label_alignment`: Center
   - `row_label_alignment`: Center
   - `debug_mode`: false
+  - `font_size`: None (use default font size)
 - **Labels**: Support multiline text using '\n' as separator
 - **Customization**: All fields can be configured to customize the plot
 
@@ -515,7 +517,7 @@ async fn convert_images_example() -> Result<()> {
     let output_dir = Path::new("output/png");
     
     // Collect input paths
-    let mut input_paths = Vec::new();
+    let mut input_paths: Vec<PathBuf> = Vec::new();
     for entry in std::fs::read_dir(input_dir)? {
         let path = entry?.path();
         if path.extension().map_or(false, |ext| ext == "jpg") {
@@ -587,6 +589,7 @@ fn create_image_grid() -> Result<()> {
         debug_mode: false,
         top_padding: 60,  // Extra space for column labels
         left_padding: 80, // Extra space for row labels
+        font_size: None,  // Use default font size
     };
     
     create_plot(&config)?;
