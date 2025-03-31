@@ -499,15 +499,7 @@ fn test_column_label_alignment_with_different_ar() -> Result<()> {
 
         // Debug print to help understand the values
         debug!(
-            "Col {}: cell_start={}, image_offset={}, image_start={}, image_center={}, label_start={}, check_start={}, check_width={}",
-            col,
-            cell_start,
-            image_offset,
-            image_start,
-            image_center,
-            label_start,
-            check_start,
-            check_width
+            "Col {col}: cell_start={cell_start}, image_offset={image_offset}, image_start={image_start}, image_center={image_center}, label_start={label_start}, check_start={check_start}, check_width={check_width}"
         );
 
         // Only check if we're not too close to the image center
@@ -615,12 +607,10 @@ fn test_column_label_alignments() -> Result<()> {
         output_img.height()
     );
     debug!(
-        "Searching for first column text at x={}, width=50",
-        first_col_x
+        "Searching for first column text at x={first_col_x}, width=50"
     );
     debug!(
-        "Searching for second column text at x={}, width=50",
-        second_col_x
+        "Searching for second column text at x={second_col_x}, width=50"
     );
 
     // Search in a wider area for the first column
@@ -629,7 +619,7 @@ fn test_column_label_alignments() -> Result<()> {
         let search_x = first_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_first = true;
-            debug!("Found first column text at x_offset={}", x_offset);
+            debug!("Found first column text at x_offset={x_offset}");
             break;
         }
     }
@@ -641,7 +631,7 @@ fn test_column_label_alignments() -> Result<()> {
         let search_x = second_col_x.saturating_add(x_offset as u32);
         if has_black_pixels(search_x, 0, 50, DEFAULT_TOP_PADDING) {
             found_second = true;
-            debug!("Found second column text at x_offset={}", x_offset);
+            debug!("Found second column text at x_offset={x_offset}");
             break;
         }
     }

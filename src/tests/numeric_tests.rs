@@ -151,12 +151,12 @@ fn test_f32_to_u32_max_precision_limitation() {
     assert_eq!(numeric::f32_to_u32(max_as_f32), u32::MAX);
 
     // Document the actual behavior for clarity
-    debug!("Note: u32::MAX as f32 = {}", max_as_f32);
+    debug!("Note: u32::MAX as f32 = {max_as_f32}");
     debug!("This is slightly less than u32::MAX due to f32's precision limitations");
 
     // Also test u32::MAX - 1 to verify it's handled correctly
     let max_minus_one_f32 = (u32::MAX - 1) as f32;
     let result = numeric::f32_to_u32(max_minus_one_f32);
-    debug!("Note: (u32::MAX - 1) as f32 = {}", max_minus_one_f32);
-    debug!("Converting back to u32 gives: {}", result);
+    debug!("Note: (u32::MAX - 1) as f32 = {max_minus_one_f32}");
+    debug!("Converting back to u32 gives: {result}");
 }

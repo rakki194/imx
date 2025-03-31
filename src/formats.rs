@@ -266,8 +266,7 @@ pub async fn convert_images_batch(
     // Process each image
     let total = input_paths.len();
     info!(
-        "Converting batch of {} images to {:?}",
-        total, output_format
+        "Converting batch of {total} images to {output_format:?}"
     );
 
     for (i, input_path) in input_paths.iter().enumerate() {
@@ -304,7 +303,7 @@ pub async fn convert_images_batch(
             .with_context(|| format!("Failed to convert {}", input_path.display()))?;
     }
 
-    info!("Successfully converted {} images", total);
+    info!("Successfully converted {total} images");
     Ok(())
 }
 

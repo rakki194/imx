@@ -46,7 +46,7 @@ fn test_emoji_ranges() {
     
     for (emoji, description) in test_cases {
         let font = fonts.get_font_for_char(emoji);
-        assert_eq!(font as *const _, fonts.emoji as *const _, 
+        assert_eq!(std::ptr::from_ref(font), std::ptr::from_ref(fonts.emoji), 
                   "Should use emoji font for {emoji} ({description})");
     }
 }
@@ -64,13 +64,13 @@ fn test_mixed_text_glyph_selection() {
         match c {
             '👋' | '🌍' => {
                 // These should be handled by the emoji font
-                assert_eq!(font as *const _, fonts.emoji as *const _,
+                assert_eq!(std::ptr::from_ref(font), std::ptr::from_ref(fonts.emoji),
                        "Emoji {c} should use emoji font");
             }
             _ => {
                 // Regular characters should be handled by the main font
                 if !c.is_whitespace() {
-                    assert_eq!(font as *const _, fonts.main as *const _,
+                    assert_eq!(std::ptr::from_ref(font), std::ptr::from_ref(fonts.main),
                            "Character {c} should use main font");
                     
                     let (_, bitmap) = font.rasterize(c, 32.0);
@@ -98,7 +98,7 @@ fn test_fallback_behavior() {
         let font = fonts.get_font_for_char(c);
         
         // These should use the main font
-        assert_eq!(font as *const _, fonts.main as *const _,
+        assert_eq!(std::ptr::from_ref(font), std::ptr::from_ref(fonts.main),
                "Character {c} should use main font");
         
         // Check that we can rasterize them

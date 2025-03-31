@@ -183,14 +183,14 @@ fn draw_text(
                         && canvas_y < canvas.height() as i32
                     {
                         // Blend glyph with canvas based on alpha
-                        let alpha = glyph_pixel as f32 / 255.0;
+                        let alpha = f32::from(glyph_pixel) / 255.0;
                         let existing_pixel = canvas.get_pixel(canvas_x as u32, canvas_y as u32);
                         let blended = Rgb([
-                            ((1.0 - alpha) * existing_pixel[0] as f32 + alpha * color[0] as f32)
+                            ((1.0 - alpha) * f32::from(existing_pixel[0]) + alpha * f32::from(color[0]))
                                 as u8,
-                            ((1.0 - alpha) * existing_pixel[1] as f32 + alpha * color[1] as f32)
+                            ((1.0 - alpha) * f32::from(existing_pixel[1]) + alpha * f32::from(color[1]))
                                 as u8,
-                            ((1.0 - alpha) * existing_pixel[2] as f32 + alpha * color[2] as f32)
+                            ((1.0 - alpha) * f32::from(existing_pixel[2]) + alpha * f32::from(color[2]))
                                 as u8,
                         ]);
                         canvas.put_pixel(canvas_x as u32, canvas_y as u32, blended);
@@ -324,7 +324,7 @@ fn validate_plot_config(config: &PlotConfig) -> Result<u32> {
 /// Loads the default fonts needed for rendering text.
 ///
 /// This returns a font pair containing:
-/// - The main font (DejaVu Sans)
+/// - The main font (`DejaVu` Sans)
 /// - The emoji font (Noto Color Emoji)
 pub(crate) fn load_fonts() -> FontPair<'static> {
     // Embedded font data
